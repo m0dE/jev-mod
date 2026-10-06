@@ -1,0 +1,4 @@
+# One word or phrase per line. Any message containing one is removed as a
+# high-severity violation (counts as SEVERE_STRIKES strikes).
+# Matching is case-insensitive, whole-word, and sees through l33t-speak (h4te -> hate).
+# Add slurs and anything else your server never wants to see.

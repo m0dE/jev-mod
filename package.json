@@ -1,0 +1,20 @@
+{
+  "name": "jev-mod",
+  "version": "1.0.0",
+  "description": "Discord moderation bot: deletes rule-breaking messages (griefing, toxic, negative, rude) and escalates warnings — the 4th offense is a ban.",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "register": "node src/register-commands.js",
+    "test": "node --test"
+  },
+  "engines": { "node": ">=18" },
+  "license": "MIT",
+  "private": true,
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.131.0",
+    "discord.js": "^14.27.0",
+    "dotenv": "^18.0.6"
+  }
+}
