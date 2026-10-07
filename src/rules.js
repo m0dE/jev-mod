@@ -15,7 +15,7 @@ const PATTERNS = [
   // medium: direct insults
   { category: 'rudeness', severity: 'medium', reason: 'Insulting another member',
     re: /\b(?:you(?:'re| are)?|ur|u r)\s+(?:so\s+|such\s+an?\s+|an?\s+)?(?:idiot|moron|stupid|dumb(?:ass)?|retard(?:ed)?|loser|trash|garbage|pathetic|worthless|clown|braindead)\b/i },
-  { category: 'rudeness', severity: 'medium', reason: 'Hostile language',
+  { category: 'rudeness', severity: 'low', reason: 'Hostile language',
     re: /\b(?:shut\s+(?:the\s+f\w*\s+)?up|stfu|f+u+c+k+\s+(?:you|u|off)|screw\s+you|nobody\s+(?:asked|likes\s+you))\b/i },
 
   // griefing: organising or bragging about ruining others' play, raids
@@ -26,6 +26,32 @@ const PATTERNS = [
   { category: 'negativity', severity: 'low', reason: 'Trashing the server or community',
     re: /\b(?:this|the)\s+(?:server|community|game|mods?|staff|admins?)\s+(?:is|are)\s+(?:trash|garbage|dead|shit|terrible|a\s+joke|cancer)\b|\beveryone\s+here\s+(?:is|are)\s+(?:trash|stupid|idiots|losers)\b/i },
 ];
+
+// Scams: fake gifts and giveaways, phishing links. Hacked accounts post these constantly.
+const URL_RE = /\b(?:https?:\/\/)?((?:[a-z0-9-]+\.)+[a-z]{2,})(?:\/\S*)?/gi;
+const REAL_DOMAINS = /(?:^|\.)(?:discord\.com|discord\.gg|discordapp\.com|discordapp\.net|discord\.gift|discord\.media|steampowered\.com|steamcommunity\.com|steamstatic\.com|s\.team)$/i;
+// Hostnames dressed up as Discord or Steam: dlscord-nitro.com, discorcl.gift, steamcommunlty.ru …
+const LOOKALIKE = /d[i1l!|]s[ck]{1,2}[o0]?r[dcl]|st[e3][a4@]m|nitro/i;
+
+const SCAM_PATTERNS = [
+  /(?:\bfree\s+(?:discord\s+)?nitro\b|\bnitro\s+(?:for\s+)?free\b).*(?:https?:\/\/|\.\w{2,}\/|dm\s+me|claim)/i,
+  /\b(?:steam|discord|nitro)\s+(?:gift|giveaway|airdrop)\b.*(?:https?:\/\/|\.\w{2,}\/)/i,
+  /\b(?:airdrop|giveaway|free\s+(?:crypto|btc|eth|sol|usdt|robux|skins?))\b.*(?:https?:\/\/|\.\w{2,}\/|dm\s+me|claim)/i,
+  /\b(?:claim|redeem)\s+(?:your|ur|the)\s+(?:gift|reward|prize|nitro|free)\b/i,
+  // "I accidentally reported your account, contact this 'staff member'…"
+  /\b(?:accidentally|mistakenly)\s+report(?:ed)?\s+(?:you|ur|your)\b|\breported\s+(?:you|your\s+account)\s+by\s+(?:accident|mistake)\b/i,
+  /\bi(?:'m| am)\s+(?:giving\s+away|leaving\s+(?:cs|steam|the\s+game)).*(?:skins?|items?|inventory)\b/i,
+];
+
+/** Fake Discord/Steam links, scam phrases, or @everyone with a link. */
+export function looksLikeScam(text) {
+  const hosts = [...text.matchAll(URL_RE)].map((m) => m[1].toLowerCase());
+  if (hosts.some((h) => LOOKALIKE.test(h) && !REAL_DOMAINS.test(h))) return 'Fake Discord or Steam link';
+  // "Beware, there's a free nitro scam going around" is a warning, not a scam.
+  if (!/\bscam/i.test(text) && SCAM_PATTERNS.some((re) => re.test(text))) return 'Scam message';
+  if (/@(?:everyone|here)\b/.test(text) && /https?:\/\//i.test(text)) return 'Mass-ping with a link';
+  return null;
+}
 
 function loadBlockedWords(file = 'config/blocked-words.txt') {
   try {
@@ -59,6 +85,10 @@ export function createRuleClassifier({ blockedWords = loadBlockedWords() } = {})
     const text = content || '';
     const norm = normalize(text);
 
+    const scam = looksLikeScam(text);
+    if (scam) {
+      return { violation: true, category: 'scam', severity: 'high', reason: scam, source: 'rules', standalone: true };
+    }
     if (blocked && (blocked.test(text) || blocked.test(norm))) {
       return { violation: true, category: 'hate', severity: 'high', reason: 'Blocked word', source: 'rules' };
     }
@@ -69,7 +99,8 @@ export function createRuleClassifier({ blockedWords = loadBlockedWords() } = {})
     }
     // Spam-pinging is classic griefing on Discord.
     if (mentionCount >= 6) {
-      return { violation: true, category: 'griefing', severity: 'medium', reason: 'Mass-mention spam', source: 'rules' };
+      // Disruptive on its own, so it doesn't need a pattern like other griefing.
+      return { violation: true, category: 'griefing', severity: 'medium', reason: 'Mass-mention spam', source: 'rules', standalone: true };
     }
     return { violation: false, source: 'rules' };
   };

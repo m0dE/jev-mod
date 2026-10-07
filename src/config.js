@@ -23,12 +23,28 @@ export const config = {
   aiEnabled: process.env.AI_MODERATION !== 'off',
   model: process.env.MOD_MODEL || 'claude-opus-5-5',
   effort: process.env.MOD_EFFORT || 'low',
+  // TypeSafe's Jev is used instead of Claude when TYPESAFE_API_KEY is set.
+  jevModel: process.env.JEV_MODEL || 'jev-latest',
+  // How sure Jev must be (0-1) before a message counts as a violation.
+  jevThreshold: num(process.env.JEV_THRESHOLD, 0.9),
+  // How sure Jev must be that a message breaks one of a server's own /rule rules.
+  jevCustomThreshold: num(process.env.JEV_CUSTOM_THRESHOLD, 0.7),
+  // A message at least this likely to be a scam is removed with a lighter mute (0.9+ is a full scam).
+  jevScamThreshold: num(process.env.JEV_SCAM_THRESHOLD, 0.6),
+  // How sure Jev must be that a member's messages together are griefing or bullying.
+  jevPatternThreshold: num(process.env.JEV_PATTERN_THRESHOLD, 0.8),
 
-  // Strikes older than this stop counting. 0 = strikes never expire.
-  strikeExpiryDays: num(process.env.STRIKE_EXPIRY_DAYS, 30),
-  // A "high" severity violation (threats, slurs, telling someone to kill themselves)
-  // adds this many strikes at once.
-  severeStrikes: num(process.env.SEVERE_STRIKES, 2),
+  // Messages the quick bundled check rates below this go no further (0-1). Lower = safer, more tokens.
+  jevGateThreshold: num(process.env.JEV_GATE_THRESHOLD, 0.3),
+  // How long (ms) messages wait to be bundled into one quick check.
+  jevBatchMs: num(process.env.JEV_BATCH_MS, 2000),
+  // Most Jev input tokens to use per day (UTC); then keyword rules only until midnight. 0 = no cap.
+  jevDailyTokenBudget: num(process.env.JEV_DAILY_TOKEN_BUDGET, 5_000_000),
+  jevUsageFile: process.env.JEV_USAGE_FILE || 'data/jev-usage.json',
+  settingsFile: process.env.SETTINGS_FILE || 'data/guild-settings.json',
+
+  // Griefing and bullying are judged on a member's messages from this many minutes.
+  patternWindowMinutes: num(process.env.PATTERN_WINDOW_MINUTES, 30),
 
   // Channels and roles the bot never moderates.
   ignoredChannelIds: list(process.env.IGNORED_CHANNEL_IDS),
@@ -38,26 +54,34 @@ export const config = {
   rulesText: process.env.SERVER_RULES || null,
 };
 
+const MIN = 60_000;
+const HOUR = 60 * MIN;
+const DAY = 24 * HOUR;
+
 /**
- * The escalation ladder. Index = strike count after the offense (1-based).
- * The 4th offense is always a ban; anything beyond 4 is also a ban.
+ * Punishments, mildest first. Each offense starts at its severity's step and moves one
+ * step up for every offense the member still has active; past the last mute is a ban.
  */
 export const LADDER = [
-  null,
-  { level: 1, action: 'warn', label: 'Warning', timeoutMs: 0,
-    message: 'This is a friendly warning. Please keep it respectful.' },
-  { level: 2, action: 'timeout', label: 'Formal warning + 10 minute timeout', timeoutMs: 10 * 60_000,
-    message: 'This is your second offense. You have been timed out for 10 minutes.' },
-  { level: 3, action: 'timeout', label: 'FINAL warning + 24 hour timeout', timeoutMs: 24 * 60 * 60_000,
-    message: 'This is your FINAL warning. One more offense and you will be banned.' },
-  { level: 4, action: 'ban', label: 'Ban', timeoutMs: 0,
-    message: 'You have been banned after four offenses.' },
+  { label: '2 minute mute', timeoutMs: 2 * MIN, message: 'Please keep it respectful. You have been muted for 2 minutes.' },
+  { label: '10 minute mute', timeoutMs: 10 * MIN, message: 'That crossed the line. You have been muted for 10 minutes.' },
+  { label: '1 hour mute', timeoutMs: HOUR, message: 'You have broken the rules several times recently. You have been muted for 1 hour.' },
+  { label: '6 hour mute', timeoutMs: 6 * HOUR, message: 'You keep breaking the rules. You have been muted for 6 hours.' },
+  { label: 'FINAL warning + 24 hour mute', timeoutMs: DAY, message: 'This is your FINAL warning. You have been muted for 24 hours. One more offense and you will be banned.' },
 ];
+export const BAN = { label: 'Ban', ban: true, message: 'You have been banned for repeatedly breaking the rules.' };
 
-export const MAX_STRIKES = LADDER.length - 1;
+// start: LADDER step for a first offense. cooldownMs: how long the offense keeps counting,
+// so 24 hours without trouble starts a member back at the bottom.
+export const SEVERITY = {
+  low: { start: 0, cooldownMs: DAY, description: 'subtle rudeness, negativity, flooding chat' },
+  medium: { start: 1, cooldownMs: DAY, description: 'clear insult, griefing, bullying, repeated spam' },
+  high: { start: 4, cooldownMs: 30 * DAY, description: 'threats, slurs, self-harm incitement, scams' },
+};
 
 export const DEFAULT_RULES = `1. Be respectful. No insults, name-calling, or personal attacks.
 2. No toxicity: no harassment, hate speech, slurs, threats, or telling people to harm themselves.
 3. No griefing: don't organise or brag about wrecking other players' builds, games, or experience; no raiding, spam-pinging, or flooding chat.
 4. Keep it positive. Don't trash-talk the server, its members, or its staff, or try to stir up drama.
-5. No rudeness: no hostile, demeaning, or deliberately inflammatory messages.`;
+5. No rudeness: no hostile, demeaning, or deliberately inflammatory messages.
+6. No spam or scams: no advertising, repeated messages, fake giveaways, or phishing links.`;

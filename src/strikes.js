@@ -1,4 +1,5 @@
-// Strike ledger, persisted to a JSON file: { [guildId]: { [userId]: Strike[] } }.
+// Offense ledger, persisted to a JSON file: { [guildId]: { [userId]: Strike[] } }.
+// Each strike stops counting at its own `until`, so members cool down over time.
 // Small servers don't need a database; writes are atomic (temp file + rename).
 
 import fs from 'node:fs';
@@ -7,9 +8,8 @@ import path from 'node:path';
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 export class StrikeStore {
-  constructor(file, { expiryDays = 30, now = () => Date.now() } = {}) {
+  constructor(file, { now = () => Date.now() } = {}) {
     this.file = file;
-    this.expiryDays = expiryDays;
     this.now = now;
     this.data = {};
     try {
@@ -27,7 +27,7 @@ export class StrikeStore {
   }
 
   #isActive(strike) {
-    return !this.expiryDays || this.now() - strike.at < this.expiryDays * DAY_MS;
+    return this.now() < (strike.until ?? strike.at + DAY_MS);
   }
 
   /** Strikes that still count toward the ladder. */
@@ -36,14 +36,15 @@ export class StrikeStore {
   }
 
   count(guildId, userId) {
-    return this.active(guildId, userId).reduce((n, s) => n + (s.weight ?? 1), 0);
+    return this.active(guildId, userId).length;
   }
 
-  /** Record an offense; returns the new active strike total. */
-  add(guildId, userId, { category, reason, excerpt, weight = 1, by = 'auto' }) {
+  /** Record an offense that counts for `cooldownMs`; returns the new active count. */
+  add(guildId, userId, { category, severity, reason, excerpt, cooldownMs = DAY_MS, by = 'auto' }) {
     const guild = (this.data[guildId] ??= {});
     const list = (guild[userId] ??= []);
-    list.push({ at: this.now(), category, reason, excerpt: excerpt?.slice(0, 200), weight, by });
+    const at = this.now();
+    list.push({ at, until: at + cooldownMs, category, severity, reason, excerpt: excerpt?.slice(0, 200), by });
     this.#save();
     return this.count(guildId, userId);
   }
