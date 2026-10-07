@@ -1,5 +1,7 @@
 # jev-mod
 
+Homepage: https://m0de.github.io/jev-mod/ · [Privacy policy](https://m0de.github.io/jev-mod/privacy.html) · [Terms](https://m0de.github.io/jev-mod/terms.html) (the site lives in `docs/`)
+
 A Discord moderation bot. It deletes messages that break the server rules (griefing, bullying, toxic, negative or rude messages, spam and scams) and mutes the sender, for longer each time they reoffend.
 
 ## Punishments
@@ -81,7 +83,7 @@ See `.env.example`. You can also:
 - Change the mute lengths and messages (`LADDER`) and where each severity starts and how long it counts (`SEVERITY`) in `src/config.js`.
 - Switch the model with `MOD_MODEL`. The default is `claude-opus-5-5` at low effort.
 
-Offenses are stored in `data/strikes.json`, server rules and log channels in `data/guild-settings.json`, and today's Jev usage in `data/jev-usage.json`. Keep the `data/` folder between restarts.
+Offenses are stored in `data/strikes.json`, server rules and log channels in `data/guild-settings.json`, and today's Jev usage in `data/jev-usage.json`. Keep the `data/` folder between restarts. Offense records are deleted 30 days after they stop counting, and a server's records and settings are deleted when the bot is removed from it.
 
 ## Tests
 

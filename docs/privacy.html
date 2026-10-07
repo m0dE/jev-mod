@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Privacy policy: JEV Mod</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="top">
+    <div class="wrap">
+      <a class="brand" href="./">JEV Mod</a>
+      <nav>
+        <a href="./">Home</a>
+        <a href="terms.html">Terms</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap doc">
+    <h1>Privacy policy</h1>
+    <p class="date">Effective October 7, 2026</p>
+
+    <p>JEV Mod is a Discord bot that moderates messages in the servers that add it. This policy explains what it reads, what it keeps, who it shares data with, and how to get data deleted.</p>
+
+    <h2>What the bot reads</h2>
+    <p>In the channels it can see, JEV Mod reads every new or edited message from members who aren't exempt. The server owner, members with the Manage Messages permission, bots, and any roles or channels the server exempts are not checked. For each checked message it uses:</p>
+    <ul>
+      <li>the message text, and the message it replies to, if any;</li>
+      <li>the author's Discord user ID and username;</li>
+      <li>up to five earlier messages in the same channel, with their authors' usernames, so a message is judged in context;</li>
+      <li>the author's own messages from the last 30 minutes, to spot spam and patterns such as bullying.</li>
+    </ul>
+
+    <h2>What is sent to other companies</h2>
+    <p>To decide whether a message breaks the rules, the bot sends the information above, along with the server's own rules, to <strong>TypeSafe AI</strong>, which runs the Jev model. If the bot's operator configures Anthropic's Claude instead, it is sent to <strong>Anthropic</strong>. These providers process it under their own terms and privacy policies. We don't sell data or share it with anyone else, and we don't use it for advertising.</p>
+    <p>Messages caught by the built-in spam and scam checks are not sent. With Jev, very short or simple messages (such as "gg" or emoji) and text judged clean within the last hour are not sent either.</p>
+
+    <h2>What is kept, and for how long</h2>
+    <table>
+      <tr><th>Data</th><th>What it contains</th><th>How long</th></tr>
+      <tr><td>Offense records</td><td>Server ID, member's user ID, time, the rule broken, the reason, an excerpt of the message (up to 200 characters), and which staff member issued it, if manual</td><td>While the offense counts (24 hours, or 30 days for severe ones), then 30 more days, then deleted. Staff can delete them sooner with <code>/pardon</code>.</td></tr>
+      <tr><td>Server settings</td><td>The server's custom rules and its mod log channel</td><td>Until changed, or until the bot is removed from the server</td></tr>
+      <tr><td>Recent messages</td><td>Each member's messages from the last 30 minutes (up to 15, 300 characters each)</td><td>Memory only, never saved to disk; discarded after 30 minutes or when the bot restarts</td></tr>
+      <tr><td>Clean-message cache</td><td>The text of messages judged clean, with no user information</td><td>Memory only, for up to one hour</td></tr>
+      <tr><td>Operational logs</td><td>Which member was acted on, where, for what kind of rule, and the punishment. Message text is not logged.</td><td>Kept on the bot's server for troubleshooting</td></tr>
+      <tr><td>Usage counter</td><td>The number of AI tokens used today; no personal data</td><td>Reset daily</td></tr>
+    </table>
+    <p>When JEV Mod is removed from a server, that server's offense records and settings are deleted.</p>
+
+    <h2>What is posted in your server</h2>
+    <p>When the bot acts, it DMs the member the reason and their punishment, posts a short notice in the channel that deletes itself after 15 seconds, and, if the server set a mod log channel, posts the details there, including the message text (up to 1,000 characters). Those mod log posts are ordinary Discord messages that the server's staff control.</p>
+
+    <h2>Your choices</h2>
+    <ul>
+      <li>Server staff can see a member's records with <code>/strikes</code> and delete them with <code>/pardon</code>.</li>
+      <li>Server admins can remove the bot at any time, which deletes the server's data.</li>
+      <li>Anyone can ask for their data to be deleted, or ask what's held about them, by <a href="https://github.com/m0dE/jev-mod/issues">opening an issue</a>. Please don't post personal details there. Say you'd like to be contacted privately.</li>
+    </ul>
+
+    <h2>Children</h2>
+    <p>JEV Mod is only for use on Discord, which requires users to be at least 13 (or older where local law requires it).</p>
+
+    <h2>Changes</h2>
+    <p>If this policy changes, the updated version will be posted here with a new effective date.</p>
+
+    <h2>Contact</h2>
+    <p>Questions about this policy: <a href="https://github.com/m0dE/jev-mod/issues">github.com/m0dE/jev-mod/issues</a>.</p>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <a href="./">Home</a>
+      <a href="terms.html">Terms of service</a>
+      <a href="https://github.com/m0dE/jev-mod">GitHub</a>
+    </div>
+  </footer>
+</body>
+</html>

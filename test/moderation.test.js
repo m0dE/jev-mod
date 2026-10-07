@@ -450,3 +450,17 @@ test('server rules: stored per server, asked as their own question, acted on', (
   assert.equal(settings.removeRule('g1', rule.id).id, rule.id);
   assert.deepEqual(settings.rules('g1'), []);
 });
+
+test('old records are deleted, and a server\'s data is forgotten when the bot leaves', () => {
+  const file = tmpFile();
+  let now = Date.now();
+  const store = new StrikeStore(file, { now: () => now });
+  store.add('g', 'old', { category: 'rudeness', severity: 'low', reason: 'r', cooldownMs: DAY });
+  now += 32 * DAY;
+  store.add('g', 'new', { category: 'rudeness', severity: 'low', reason: 'r', cooldownMs: DAY });
+  const saved = JSON.parse(fs.readFileSync(file, 'utf8'));
+  assert.deepEqual(Object.keys(saved.g), ['new'], 'expired over 30 days ago: gone from disk');
+
+  store.forgetGuild('g');
+  assert.deepEqual(JSON.parse(fs.readFileSync(file, 'utf8')), {});
+});

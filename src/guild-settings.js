@@ -52,6 +52,12 @@ export class GuildSettings {
     return removed;
   }
 
+  forgetGuild(guildId) {
+    if (!this.data[guildId]) return;
+    delete this.data[guildId];
+    this.#save();
+  }
+
   modLogChannelId(guildId) {
     return this.data[guildId]?.modLogChannelId ?? null;
   }

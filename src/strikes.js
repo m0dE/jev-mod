@@ -6,6 +6,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+// Records are deleted this long after they stop counting.
+const KEEP_EXPIRED_MS = 30 * DAY_MS;
 
 export class StrikeStore {
   constructor(file, { now = () => Date.now() } = {}) {
@@ -20,10 +22,30 @@ export class StrikeStore {
   }
 
   #save() {
+    this.#prune();
     fs.mkdirSync(path.dirname(this.file), { recursive: true });
     const tmp = `${this.file}.tmp`;
     fs.writeFileSync(tmp, JSON.stringify(this.data, null, 2));
     fs.renameSync(tmp, this.file);
+  }
+
+  #prune() {
+    const cutoff = this.now() - KEEP_EXPIRED_MS;
+    for (const [guildId, users] of Object.entries(this.data)) {
+      for (const [userId, list] of Object.entries(users)) {
+        const kept = list.filter((s) => (s.until ?? s.at + DAY_MS) > cutoff);
+        if (kept.length) users[userId] = kept;
+        else delete users[userId];
+      }
+      if (!Object.keys(users).length) delete this.data[guildId];
+    }
+  }
+
+  /** Delete everything about a server (when the bot is removed from it). */
+  forgetGuild(guildId) {
+    if (!this.data[guildId]) return;
+    delete this.data[guildId];
+    this.#save();
   }
 
   #isActive(strike) {

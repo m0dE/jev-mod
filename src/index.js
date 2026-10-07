@@ -126,6 +126,14 @@ client.once(Events.ClientReady, (c) => {
 
 client.on(Events.MessageCreate, moderate);
 
+// Removed from a server: delete its offense records and settings.
+client.on(Events.GuildDelete, (guild) => {
+  if (!guild.available) return; // an outage, not a removal
+  store.forgetGuild(guild.id);
+  settings.forgetGuild(guild.id);
+  console.log(`[bot] removed from ${guild.name ?? guild.id}; deleted its data`);
+});
+
 // Hourly: how many messages needed Jev, and how much of today's budget is used.
 setInterval(() => {
   const s = classifier.takeStats();
