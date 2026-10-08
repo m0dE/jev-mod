@@ -1,0 +1,411 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>API reference: Jef Bot</title>
+  <meta name="description" content="Complete reference for the Jef Bot /v1 HTTP API: authentication, errors, rate limits, pagination, objects and every endpoint including moderation, apps, keys, rules, users, history and billing.">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <header class="top">
+    <div class="wrap">
+      <a class="brand" href="/"><img src="/favicon.svg" alt="" width="28" height="28">Jef Bot</a>
+      <nav aria-label="Main">
+        <a href="/docs/">Docs</a>
+        <a href="/pricing.html">Pricing</a>
+        <a class="hide-sm" href="/docs/api.html" aria-current="page">API</a>
+        <a class="hide-sm" href="/app/login">Sign in</a>
+        <a class="button" href="/app/login">Get started</a>
+      </nav>
+    </div>
+  </header>
+  <div class="wrap docs-layout">
+    <nav class="sidebar" aria-label="Documentation">
+      <h2>Getting started</h2>
+      <ul>
+        <li><a href="/docs/">Overview</a></li>
+        <li><a href="/docs/quickstart-game.html">Game chat quickstart</a></li>
+        <li><a href="/docs/quickstart-discord.html">Discord quickstart</a></li>
+        <li><a href="/docs/agents.html">Setup by AI agents</a></li>
+      </ul>
+      <h2>Reference</h2>
+      <ul>
+        <li><a href="/docs/api.html" aria-current="page">API reference</a></li>
+        <li><a href="/docs/webhooks.html">Webhooks</a></li>
+        <li><a href="/docs/rules.html">Rules and punishments</a></li>
+        <li><a href="/openapi.json">OpenAPI spec</a></li>
+        <li><a href="/llms.txt">llms.txt</a></li>
+      </ul>
+      <h2>Account</h2>
+      <ul>
+        <li><a href="/pricing.html">Pricing</a></li>
+        <li><a href="/app">Dashboard</a></li>
+      </ul>
+    </nav>
+    <main id="main" class="content">
+      <h1>API reference</h1>
+      <p class="lead">The <code>/v1</code> JSON API, used by games, agents and the dashboard alike. Also available as <a href="/openapi.json">OpenAPI 3.1</a>.</p>
+
+      <div class="toc">
+        <strong>On this page</strong>
+        <ul>
+          <li><a href="#basics">Basics</a>: <a href="#auth">authentication</a>, <a href="#errors">errors</a>, <a href="#rate-limits">rate limits</a>, <a href="#pagination">pagination</a></li>
+          <li><a href="#objects">Objects</a></li>
+          <li>Endpoints: <a href="#public">public</a>, <a href="#account">account</a>, <a href="#account-keys">account keys</a>, <a href="#apps">apps</a>, <a href="#app-keys">app keys</a>, <a href="#discord">Discord linking</a>, <a href="#rules">rules</a>, <a href="#moderate">moderate</a>, <a href="#users">users</a>, <a href="#events">history</a>, <a href="#billing">billing</a></li>
+        </ul>
+      </div>
+
+      <h2 id="basics">Basics</h2>
+      <ul>
+        <li><strong>Base URL:</strong> this site's address, e.g. <code>https://jef.example.com/v1</code>.</li>
+        <li><strong>Bodies</strong> are JSON: send <code>Content-Type: application/json</code>. Bodies are limited to 64 KB.</li>
+        <li><strong>Timestamps</strong> are ISO 8601 strings in UTC, e.g. <code>"2026-10-08T12:00:00.000Z"</code>. Durations are milliseconds.</li>
+        <li><strong>IDs</strong> are strings (<code>acct_…</code>, <code>app_…</code>, <code>key_…</code>), except rule, strike and event IDs, which are integers.</li>
+        <li><strong>CORS:</strong> <code>/v1</code> answers cross-origin requests that carry an API key. Even so, don't put keys in browsers or game clients.</li>
+      </ul>
+
+      <h3 id="auth">Authentication</h3>
+      <p>Send an API key as a bearer token:</p>
+      <pre data-lang="http"><code>Authorization: Bearer jef_acct_…</code></pre>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th scope="col">Credential</th><th scope="col">Scope</th></tr></thead>
+          <tbody>
+            <tr><td>Account key <code>jef_acct_…</code></td><td>Everything on the account, including billing links. Create at <a href="/app/account">/app/account</a> or <code>POST /v1/keys</code>. If the account has more account keys than its plan allows (after a downgrade), the newest ones past the limit get <code>403 plan_limit</code> on every request.</td></tr>
+            <tr><td>App key <code>jef_app_…</code></td><td>One API app: <code>POST /v1/moderate</code>, <code>GET /v1/account</code>, and the app's <code>GET</code> app / rules / users / events, <code>…/warn</code> and <code>…/pardon</code>. Anything else is <code>403 forbidden</code>.</td></tr>
+            <tr><td>Session cookie <code>jef_session</code></td><td>The dashboard, after Google sign-in. Same rights as an account key. Requests that change data must be same-origin and <code>Content-Type: application/json</code> (otherwise <code>403 bad_origin</code> or <code>415 json_required</code>).</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>In the tables below, <strong>Auth</strong> is <em>none</em>, <em>account</em> (account key or session) or <em>any</em> (account key, session, or that app's own app key). A request with an <code>Authorization</code> header that isn't a valid key fails with <code>401 invalid_api_key</code>, even on public endpoints.</p>
+
+      <h3 id="errors">Errors</h3>
+      <pre data-lang="json"><code>{ "error": { "code": "plan_limit", "message": "The Free plan allows 3 custom rule(s) per app" } }</code></pre>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th scope="col">Status</th><th scope="col">Code</th><th scope="col">When</th></tr></thead>
+          <tbody>
+            <tr><td>400</td><td><code>invalid_request</code></td><td>A field is missing, too long or the wrong type. The message names it.</td></tr>
+            <tr><td>400</td><td><code>invalid_json</code></td><td>The body isn't valid JSON.</td></tr>
+            <tr><td>400</td><td><code>no_customer</code></td><td><code>POST /v1/billing/portal</code> before any purchase.</td></tr>
+            <tr><td>401</td><td><code>unauthorized</code></td><td>No key and no session.</td></tr>
+            <tr><td>401</td><td><code>invalid_api_key</code></td><td>The key doesn't exist or was deleted.</td></tr>
+            <tr><td>403</td><td><code>forbidden</code></td><td>An app key used where an account is needed.</td></tr>
+            <tr><td>403</td><td><code>plan_limit</code></td><td>Over a plan limit: apps, account keys, custom rules, or webhooks on Free. Also moderating an app with <code>inPlan: false</code>, or using an account key past the plan's key count.</td></tr>
+            <tr><td>403</td><td><code>limit</code></td><td>More than 10 app keys for one app.</td></tr>
+            <tr><td>403</td><td><code>bad_origin</code></td><td>Cookie request from another site.</td></tr>
+            <tr><td>404</td><td><code>not_found</code></td><td>No such app, key, rule or endpoint (other accounts' things are "not found" too).</td></tr>
+            <tr><td>409</td><td><code>guild_taken</code></td><td>The Discord server is linked to another app.</td></tr>
+            <tr><td>413</td><td><code>too_large</code></td><td>Body over 64 KB.</td></tr>
+            <tr><td>415</td><td><code>json_required</code></td><td>Cookie request without a JSON content type.</td></tr>
+            <tr><td>429</td><td><code>rate_limited</code></td><td>Over the app's <code>/v1/moderate</code> rate.</td></tr>
+            <tr><td>500</td><td><code>internal</code></td><td>Our fault. Retry with backoff.</td></tr>
+            <tr><td>502</td><td><code>billing_error</code></td><td>Stripe returned an error.</td></tr>
+            <tr><td>503</td><td><code>billing_unavailable</code></td><td>Billing isn't configured on this server (or that plan can't be bought yet).</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 id="rate-limits">Rate limits</h3>
+      <p><code>POST /v1/moderate</code> is limited per app, by the owner's plan: <strong>5</strong> (Free), <strong>20</strong> (Starter) or <strong>50</strong> (Pro) requests per second, as a token bucket that allows bursts of up to twice that. Over the limit: <code>429 rate_limited</code> with a <code>Retry-After: 1</code> header. Other endpoints have no per-plan rate limit, but please keep setup traffic modest.</p>
+
+      <h3 id="pagination">Pagination</h3>
+      <p>Only history (<code>GET /v1/apps/{appId}/events</code>) is paginated. It returns events newest first and a <code>nextBefore</code> cursor: pass it as <code>?before=</code> to get the next (older) page. Stop when a page has fewer events than <code>limit</code> or is empty. Other lists return everything at once.</p>
+
+      <h2 id="objects">Objects</h2>
+
+      <h3 id="obj-account">Account</h3>
+      <pre data-lang="json"><code>{ "id": "acct_Qm3x…", "email": "owner@example.com", "name": "Sam", "plan": "starter",
+  "subscriptionStatus": "active", "currentPeriodEnd": "2026-11-08T12:00:00.000Z", "createdAt": "2026-10-01T09:12:44.000Z" }</code></pre>
+      <p><code>plan</code>: <code>free</code>, <code>starter</code>, <code>pro</code> or <code>internal</code> (operator accounts; unlimited). <code>subscriptionStatus</code> is Stripe's (<code>active</code>, <code>past_due</code>, <code>canceled</code>, …) or <code>null</code>.</p>
+
+      <h3 id="obj-limits">Plan limits</h3>
+      <pre data-lang="json"><code>{ "id": "free", "name": "Free", "priceUsd": 0, "apps": 1, "accountKeys": 1, "aiChecksPerMonth": 2000,
+  "customRules": 3, "historyDays": 7, "webhooks": false, "requestsPerSecond": 5 }</code></pre>
+      <p>In <code>GET /v1/account</code>, <code>null</code> means unlimited. <code>GET /v1/plans</code> items also have <code>purchasable</code> (whether this server can sell the plan).</p>
+
+      <h3 id="obj-key">Key</h3>
+      <pre data-lang="json"><code>{ "id": "key_7hQ2pW0sLmAa", "kind": "app", "appId": "app_Xk2mP9qLr4Tz", "name": "Default key",
+  "prefix": "jef_app_3kq9", "createdAt": "2026-10-08T12:00:00.000Z", "lastUsedAt": null }</code></pre>
+      <p><code>kind</code>: <code>account</code> (then <code>appId</code> is <code>null</code>) or <code>app</code>. <code>prefix</code> is the first characters of the secret, to tell keys apart. <code>lastUsedAt</code> is updated at most once a minute. The secret itself is only returned once, at creation, next to the key: <code>{ "key": Key, "secret": "jef_…" }</code>.</p>
+
+      <h3 id="obj-app">App</h3>
+      <pre data-lang="json"><code>{
+  "id": "app_Xk2mP9qLr4Tz",
+  "name": "My Game",
+  "kind": "api",
+  "discordGuildId": null,
+  "settings": {},
+  "webhookUrl": "https://game.example.com/hooks/jef",
+  "webhookSecret": "whsec_…",
+  "inPlan": true,
+  "rules": [ Rule, … ],
+  "createdAt": "2026-10-08T12:00:00.000Z"
+}</code></pre>
+      <ul>
+        <li><code>kind</code>: <code>api</code> or <code>discord</code>. <code>discordGuildId</code>: the linked Discord server ID, or <code>null</code>.</li>
+        <li><code>settings</code> (Discord apps): <code>modLogChannelId</code> (string), <code>ignoredChannelIds</code>, <code>exemptRoleIds</code> (arrays of IDs). Unset settings are absent.</li>
+        <li><code>webhookSecret</code> is omitted when you read the app with an app key.</li>
+        <li><code>inPlan</code>: whether the app is within the plan's app count. Apps are counted oldest first; after a downgrade, newer apps past the limit are <code>false</code> and aren't moderated (<code>POST /v1/moderate</code> gives <code>403 plan_limit</code>, Discord messages are ignored) until you delete apps or upgrade.</li>
+        <li><code>rules</code> lists all the app's rules, but only the oldest ones up to the plan's <code>customRules</code> are applied.</li>
+      </ul>
+
+      <h3 id="obj-rule">Rule</h3>
+      <pre data-lang="json"><code>{ "id": 41, "text": "No begging other players for items or currency", "severity": "low", "createdAt": "2026-10-08T12:00:00.000Z" }</code></pre>
+
+      <h3 id="obj-result">Moderation result</h3>
+      <pre data-lang="json"><code>{
+  "messageId": "msg_99120",
+  "allow": false,
+  "flagged": true,
+  "category": "rudeness",
+  "severity": "medium",
+  "reason": "Insulting another member",
+  "source": "rules",
+  "action": { "type": "mute", "label": "10 minute mute", "durationMs": 600000,
+              "message": "That crossed the line. You have been muted for 10 minutes.", "level": 1 },
+  "strikes": 1,
+  "deleteMessages": [ { "messageId": "msg_99118", "room": "lobby-3" } ],
+  "watch": null
+}</code></pre>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th scope="col">Field</th><th scope="col">Type</th><th scope="col">Meaning</th></tr></thead>
+          <tbody>
+            <tr><td><code>messageId</code></td><td>string</td><td>Yours, or a generated <code>m_…</code> one.</td></tr>
+            <tr><td><code>allow</code></td><td>boolean</td><td><code>true</code> if the message may stay. Always <code>!flagged</code>.</td></tr>
+            <tr><td><code>flagged</code></td><td>boolean</td><td>It broke a rule.</td></tr>
+            <tr><td><code>category</code></td><td>string | null</td><td><code>griefing</code>, <code>toxicity</code>, <code>harassment</code>, <code>hate</code>, <code>threat</code>, <code>negativity</code>, <code>rudeness</code>, <code>spam</code>, <code>scam</code> or <code>custom</code> (one of your rules). <code>null</code> when allowed.</td></tr>
+            <tr><td><code>severity</code></td><td>string | null</td><td><code>low</code>, <code>medium</code>, <code>high</code>; <code>null</code> when allowed.</td></tr>
+            <tr><td><code>reason</code></td><td>string | null</td><td>Short, player-facing. Custom rules read <code>"Server rule: …"</code>.</td></tr>
+            <tr><td><code>source</code></td><td>string | null</td><td>What decided: <code>spam</code>, <code>rules</code>, <code>jev</code>, or <code>ai</code> (Claude, if the server is configured that way).</td></tr>
+            <tr><td><code>action</code></td><td><a href="#obj-action">Action</a></td><td>What to do.</td></tr>
+            <tr><td><code>strikes</code></td><td>integer</td><td>Active strikes after this message.</td></tr>
+            <tr><td><code>deleteMessages</code></td><td>array</td><td>Earlier messages to remove as well (spam copies, the rest of a scam run): <code>{ messageId, room }</code>, <code>room</code> may be <code>null</code>.</td></tr>
+            <tr><td><code>watch</code></td><td>string | null</td><td><code>griefing</code> or <code>harassment</code>: possible start of a pattern, noted in history, no action yet.</td></tr>
+            <tr><td><code>aiSkipped</code></td><td>string</td><td>Only present, as <code>"quota"</code>, when the account's AI checks for the month, or for the UTC day (a tenth of the monthly allowance), are used up and the AI was skipped.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 id="obj-action">Action</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th scope="col"><code>type</code></th><th scope="col"><code>label</code> (examples)</th><th scope="col"><code>durationMs</code></th><th scope="col"><code>message</code></th></tr></thead>
+          <tbody>
+            <tr><td><code>none</code></td><td>No action</td><td><code>null</code></td><td><code>null</code></td></tr>
+            <tr><td><code>delete</code></td><td>Message removed</td><td><code>null</code></td><td><code>null</code></td></tr>
+            <tr><td><code>mute</code></td><td>2 minute mute … FINAL warning + 24 hour mute</td><td>120000 … 86400000</td><td>Text for the player</td></tr>
+            <tr><td><code>ban</code></td><td>Ban</td><td><code>null</code> (permanent)</td><td>Text for the player</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p><code>level</code> (on <code>mute</code> and <code>ban</code>) is the ladder step, 0–5 (5 = ban). <code>delete</code> is returned for a further violation within 10 seconds of a punishment: the message goes but no new strike is added. See the <a href="/docs/rules.html#ladder">ladder</a>.</p>
+
+      <h3 id="obj-strike">Strike</h3>
+      <pre data-lang="json"><code>{ "id": 812, "at": "2026-10-08T12:00:00.000Z", "until": "2026-10-09T12:00:00.000Z", "category": "rudeness",
+  "severity": "medium", "reason": "Insulting another member", "excerpt": "you are such an idiot, uninstall", "by": "auto" }</code></pre>
+      <p><code>until</code>: when it stops counting. <code>excerpt</code>: up to 200 characters (null for manual warnings). <code>by</code>: <code>"auto"</code>, or who issued a manual warning.</p>
+
+      <h3 id="obj-event">Event</h3>
+      <pre data-lang="json"><code>{ "id": 5531, "at": "2026-10-08T12:00:00.000Z", "type": "action", "userId": "player_18842", "username": "Tobi",
+  "room": "lobby-3", "messageId": "msg_99120", "excerpt": "you are such an idiot, uninstall", "category": "rudeness",
+  "severity": "medium", "reason": "Insulting another member", "source": "rules", "action": "10 minute mute",
+  "strikes": 1, "by": null }</code></pre>
+      <p><code>type</code>: <code>action</code> (automatic punishment), <code>watch</code> (possible griefing or bullying, no action), <code>manual</code> (a warn) or <code>pardon</code>. Fields that don't apply are <code>null</code>. <code>excerpt</code> is up to 500 characters; <code>action</code> is the punishment's label. For Discord apps, <code>room</code> is the channel name (e.g. <code>#general</code>).</p>
+
+      <h2 id="public">Public</h2>
+      <p class="endpoint"><span class="method get">GET</span>/v1/health</p>
+      <p>Auth: none. <code>{ "ok": true }</code>.</p>
+      <p class="endpoint"><span class="method get">GET</span>/v1/plans</p>
+      <p>Auth: none. <code>{ "plans": [Plan limits + purchasable] }</code> for Free, Starter and Pro.</p>
+
+      <h2 id="account">Account</h2>
+      <p class="endpoint"><span class="method get">GET</span>/v1/account</p>
+      <p>Auth: any. The account that owns the credential, its plan limits and this month's usage.</p>
+      <pre data-lang="json"><code>{
+  "account": Account,
+  "limits": Plan limits,
+  "usage": { "month": "2026-10", "messages": 1834, "aiChecks": 412, "apps": 2, "accountKeys": 1 },
+  "admin": false,
+  "auth": "account_key"
+}</code></pre>
+      <p><code>usage.messages</code> and <code>usage.aiChecks</code> are for the current UTC month, across all apps. <code>auth</code>: <code>session</code>, <code>account_key</code> or <code>app_key</code>.</p>
+
+      <h2 id="account-keys">Account keys</h2>
+      <p class="endpoint"><span class="method get">GET</span>/v1/keys</p>
+      <p>Auth: account. <code>{ "keys": [Key] }</code>, account keys only, oldest first.</p>
+      <p class="endpoint"><span class="method post">POST</span>/v1/keys</p>
+      <p>Auth: account. Body <code>{ "name"?: string ≤ 60 }</code> (default "Account key"). <code>201 { "key": Key, "secret": "jef_acct_…" }</code>. <code>403 plan_limit</code> past the plan's account keys.</p>
+      <p class="endpoint"><span class="method delete">DELETE</span>/v1/keys/{keyId}</p>
+      <p>Auth: account. <code>204</code>. Works on the key making the request, too.</p>
+
+      <h2 id="apps">Apps</h2>
+      <p class="endpoint"><span class="method get">GET</span>/v1/apps</p>
+      <p>Auth: account. <code>{ "apps": [App] }</code>, oldest first.</p>
+
+      <p class="endpoint"><span class="method post">POST</span>/v1/apps</p>
+      <p>Auth: account. Creates an app, and in the same transaction its rules and webhook.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th scope="col">Field</th><th scope="col">Type</th><th scope="col"></th></tr></thead>
+          <tbody>
+            <tr><td><code>name</code></td><td>string ≤ 80</td><td>Required.</td></tr>
+            <tr><td><code>kind</code></td><td><code>"api"</code> | <code>"discord"</code></td><td>Default <code>"api"</code>.</td></tr>
+            <tr><td><code>rules</code></td><td><code>[{ text ≤ 300, severity? }]</code></td><td>Up to the plan's custom rules. Severity defaults to <code>low</code>.</td></tr>
+            <tr><td><code>webhookUrl</code></td><td>string</td><td>Public <code>https://</code> URL. Paid plans.</td></tr>
+            <tr><td><code>createKey</code></td><td>boolean</td><td>API apps: create a first app key (default <code>true</code>). Ignored for Discord apps.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p><code>201</code>:</p>
+      <pre data-lang="json"><code>{
+  "app": App,
+  "appKey": { "key": Key, "secret": "jef_app_…" },                // API apps, unless createKey is false
+  "discord": { "inviteUrl": "https://discord.com/oauth2/authorize?…" | null,   // Discord apps
+               "linkCode": "A1B2C3D4E5F6", "linkCommand": "/jef link code:A1B2C3D4E5F6",
+               "expiresAt": "2026-10-08T13:00:00.000Z", "autoLink": true }
+}</code></pre>
+
+      <p class="endpoint"><span class="method get">GET</span>/v1/apps/{appId}</p>
+      <p>Auth: any. <code>{ "app": App }</code> (no <code>webhookSecret</code> with an app key).</p>
+
+      <p class="endpoint"><span class="method patch">PATCH</span>/v1/apps/{appId}</p>
+      <p>Auth: account. Only the fields you send change. <code>{ "app": App }</code>.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th scope="col">Field</th><th scope="col">Type</th><th scope="col"></th></tr></thead>
+          <tbody>
+            <tr><td><code>name</code></td><td>string ≤ 80</td><td></td></tr>
+            <tr><td><code>webhookUrl</code></td><td>string | null</td><td>Paid plans. Setting one the first time also creates <code>webhookSecret</code>. <code>null</code> or <code>""</code> removes it.</td></tr>
+            <tr><td><code>settings</code></td><td>object</td><td>Discord apps only. <code>modLogChannelId</code>: a channel ID; <code>ignoredChannelIds</code>, <code>exemptRoleIds</code>: up to 100 IDs. IDs are 5–25 digit strings. Merged into the current settings; <code>null</code> clears one. Unknown keys: <code>400</code>.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p class="endpoint"><span class="method delete">DELETE</span>/v1/apps/{appId}</p>
+      <p>Auth: account. <code>204</code>. Deletes the app with its rules, keys, strikes and history. A linked Discord server stops being moderated.</p>
+
+      <p class="endpoint"><span class="method post">POST</span>/v1/apps/{appId}/webhook-secret</p>
+      <p>Auth: account. Replaces the signing secret: <code>{ "webhookSecret": "whsec_…" }</code>. The old one stops working immediately.</p>
+
+      <h2 id="app-keys">App keys</h2>
+      <p class="endpoint"><span class="method get">GET</span>/v1/apps/{appId}/keys</p>
+      <p>Auth: account. <code>{ "keys": [Key] }</code>.</p>
+      <p class="endpoint"><span class="method post">POST</span>/v1/apps/{appId}/keys</p>
+      <p>Auth: account. API apps only (Discord apps: <code>400</code>). Body <code>{ "name"?: string ≤ 60 }</code> (default "App key"). <code>201 { "key": Key, "secret": "jef_app_…" }</code>. At most 10 per app (<code>403 limit</code>).</p>
+      <p class="endpoint"><span class="method delete">DELETE</span>/v1/apps/{appId}/keys/{keyId}</p>
+      <p>Auth: account. <code>204</code>.</p>
+
+      <h2 id="discord">Discord linking</h2>
+      <p class="endpoint"><span class="method post">POST</span>/v1/apps/{appId}/discord/link</p>
+      <p>Auth: account. Discord apps only. A new invite link and link code, valid 1 hour; earlier codes for the app stop working.</p>
+      <pre data-lang="json"><code>{ "inviteUrl": "https://discord.com/oauth2/authorize?…", "linkCode": "A1B2C3D4E5F6",
+  "linkCommand": "/jef link code:A1B2C3D4E5F6", "expiresAt": "2026-10-08T13:00:00.000Z", "autoLink": true }</code></pre>
+      <p><code>autoLink</code>: adding the bot with <code>inviteUrl</code> links the server by itself, provided the person is signed in to the dashboard as the app's owner when Discord redirects back (otherwise it fails with <code>reason=signed_out</code> or <code>not_owner</code>); else run <code>linkCommand</code> in the server. <code>inviteUrl</code> is <code>null</code> if the server has no Discord bot configured. When linked, <code>app.discordGuildId</code> is set.</p>
+      <p class="endpoint"><span class="method delete">DELETE</span>/v1/apps/{appId}/discord</p>
+      <p>Auth: account. <code>204</code>. Unlinks the server; the bot stays in it but stops moderating. Strikes and history are kept.</p>
+
+      <h2 id="rules">Custom rules</h2>
+      <p class="endpoint"><span class="method get">GET</span>/v1/apps/{appId}/rules</p>
+      <p>Auth: any. <code>{ "rules": [Rule] }</code>.</p>
+      <p class="endpoint"><span class="method post">POST</span>/v1/apps/{appId}/rules</p>
+      <p>Auth: account. Body <code>{ "text": string ≤ 300, "severity"?: "low" | "medium" | "high" }</code> (default <code>low</code>). <code>201 { "rule": Rule }</code>. <code>403 plan_limit</code> past the plan's custom rules. Only the app's oldest rules up to that limit are applied.</p>
+      <p class="endpoint"><span class="method delete">DELETE</span>/v1/apps/{appId}/rules/{ruleId}</p>
+      <p>Auth: account. <code>204</code>, or <code>404</code> if there's no such rule.</p>
+
+      <h2 id="moderate">Moderate</h2>
+      <p class="endpoint"><span class="method post">POST</span>/v1/moderate</p>
+      <p>Auth: any. Judges one message, records the strike and history if it broke a rule, and returns a <a href="#obj-result">moderation result</a>. Rate limited per app (<code>429</code> with <code>Retry-After: 1</code>). <code>403 plan_limit</code> if the app has <code>inPlan: false</code>.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th scope="col">Field</th><th scope="col">Type</th><th scope="col"></th></tr></thead>
+          <tbody>
+            <tr><td><code>appId</code></td><td>string</td><td>Required with an account key or session; optional with an app key (must match it).</td></tr>
+            <tr><td><code>userId</code></td><td>string ≤ 100</td><td>Required. Stable ID of the sender (numbers are accepted and turned into strings).</td></tr>
+            <tr><td><code>text</code></td><td>string ≤ 4000</td><td>Required. The message.</td></tr>
+            <tr><td><code>username</code></td><td>string ≤ 100</td><td>Display name.</td></tr>
+            <tr><td><code>messageId</code></td><td>string ≤ 100</td><td>Your message ID; referenced in <code>deleteMessages</code> later.</td></tr>
+            <tr><td><code>room</code></td><td>string ≤ 100</td><td>Channel or lobby. The last 5 messages per room are kept in memory as context.</td></tr>
+            <tr><td><code>replyTo</code></td><td>string ≤ 400 | <code>{ username ≤ 100, text ≤ 300 }</code></td><td>The message being replied to.</td></tr>
+            <tr><td><code>context</code></td><td>array ≤ 20 of string ≤ 400 | <code>{ username ≤ 100, text ≤ 300 }</code></td><td>Earlier messages, oldest first. Replaces the remembered room context.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <pre data-lang="curl"><code>curl -s https://jef.example.com/v1/moderate \
+  -H "Authorization: Bearer $JEF_APP_KEY" -H "Content-Type: application/json" \
+  -d '{"userId": "player_18842", "username": "Tobi", "text": "gg everyone", "messageId": "msg_99121", "room": "lobby-3",
+       "context": [{"username": "Mia", "text": "close game!"}]}'</code></pre>
+      <p>Every call counts as a message in usage; it counts as an AI check only if it reached the AI (a griefing or bullying pattern check is one more). If the app has a webhook and the plan includes webhooks, a punishment also sends <code>moderation.action</code>.</p>
+
+      <h2 id="users">Users</h2>
+      <p>A "user" is any <code>userId</code> you've sent; there's nothing to create. For Discord apps, it's the Discord user ID.</p>
+      <p class="endpoint"><span class="method get">GET</span>/v1/apps/{appId}/users/{userId}</p>
+      <p>Auth: any. Active strikes, and what the next offense of each severity would bring.</p>
+      <pre data-lang="json"><code>{
+  "userId": "player_18842",
+  "strikes": 1,
+  "active": [ Strike ],
+  "next": {
+    "low":    { "type": "mute", "label": "10 minute mute", "durationMs": 600000, "message": "…" },
+    "medium": { "type": "mute", "label": "1 hour mute", "durationMs": 3600000, "message": "…" },
+    "high":   { "type": "ban", "label": "Ban", "durationMs": null, "message": "…" }
+  }
+}</code></pre>
+      <p class="endpoint"><span class="method post">POST</span>/v1/apps/{appId}/users/{userId}/warn</p>
+      <p>Auth: any. A manual punishment on the same ladder. Body <code>{ "reason": string ≤ 300, "severity"?: … (default medium), "username"?: string ≤ 100, "by"?: string ≤ 100 }</code>. <code>by</code> defaults to the signed-in email or the key's name. Returns <code>{ "strikes": 2, "action": Action }</code>; your game applies the action. Sends <code>moderation.manual</code>.</p>
+      <div class="note"><p>For Discord apps, a warn through the API records the strike but doesn't time the member out or DM them; use <code>/warn</code> in Discord for that.</p></div>
+      <p class="endpoint"><span class="method post">POST</span>/v1/apps/{appId}/users/{userId}/pardon</p>
+      <p>Auth: any. Removes the newest <code>count</code> active strikes, or all of them. Body <code>{ "count"?: positive integer, "by"?: string ≤ 100 }</code>. Returns <code>{ "removed": 1, "strikes": 0 }</code>. Sends <code>moderation.pardon</code>. It doesn't lift a mute or ban already applied; do that in your game (or in Discord).</p>
+
+      <h2 id="events">History</h2>
+      <p class="endpoint"><span class="method get">GET</span>/v1/apps/{appId}/events</p>
+      <p>Auth: any. Newest first. Kept for the plan's <code>historyDays</code>.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th scope="col">Query</th><th scope="col"></th></tr></thead>
+          <tbody>
+            <tr><td><code>limit</code></td><td>Integer, default 50, clamped to 1–200.</td></tr>
+            <tr><td><code>before</code></td><td>Integer event ID: only events older than it. Use the previous page's <code>nextBefore</code>.</td></tr>
+            <tr><td><code>userId</code></td><td>Only this user's events.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <pre data-lang="json"><code>{ "events": [ Event, … ], "nextBefore": 5480 }</code></pre>
+      <p><code>nextBefore</code> is the ID of the last event on the page (<code>null</code> if the page is empty).</p>
+
+      <h2 id="billing">Billing</h2>
+      <p>Account keys and sessions only (app keys: <code>403</code>). Payment always happens on a Stripe page that a person opens.</p>
+      <p class="endpoint"><span class="method get">GET</span>/v1/billing</p>
+      <pre data-lang="json"><code>{ "enabled": true, "plan": "starter", "subscriptionStatus": "active",
+  "currentPeriodEnd": "2026-11-08T12:00:00.000Z", "hasCustomer": true }</code></pre>
+      <p><code>enabled</code>: this server can take payments. <code>hasCustomer</code>: the account has subscribed before (so the portal works).</p>
+      <p class="endpoint"><span class="method post">POST</span>/v1/billing/checkout</p>
+      <p>Body <code>{ "plan": "starter" | "pro" }</code>. Returns <code>{ "url": "https://checkout.stripe.com/…", "kind": "checkout" }</code>. If the account already has a live subscription, returns <code>{ "url": "https://billing.stripe.com/…", "kind": "portal" }</code> instead, to change plan there. After paying, the person returns to <code>/app/account</code> and the plan updates within seconds. Errors: <code>400 invalid_request</code> (other plan, or an <code>internal</code> account), <code>503 billing_unavailable</code>, <code>502 billing_error</code>.</p>
+      <p class="endpoint"><span class="method post">POST</span>/v1/billing/portal</p>
+      <p>No body. <code>{ "url": "https://billing.stripe.com/…" }</code>: the Stripe customer portal to change plan, update the card, see invoices or cancel. <code>400 no_customer</code> before the first purchase.</p>
+
+      <nav class="pager" aria-label="More pages">
+        <a href="/docs/agents.html">← Setup by AI agents</a>
+        <a href="/docs/webhooks.html">Webhooks →</a>
+      </nav>
+    </main>
+  </div>
+  <footer>
+    <div class="wrap">
+      <span>Jef Bot · AI moderation by Jev</span>
+      <span class="spacer"></span>
+      <a href="/docs/">Docs</a>
+      <a href="/pricing.html">Pricing</a>
+      <a href="/privacy.html">Privacy</a>
+      <a href="/terms.html">Terms</a>
+      <a href="https://github.com/m0dE/jev-mod">GitHub</a>
+      <a href="https://github.com/m0dE/jev-mod/issues">Contact</a>
+    </div>
+  </footer>
+  <script src="/docs/docs.js" defer></script>
+</body>
+</html>

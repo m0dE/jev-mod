@@ -1,4 +1,4 @@
-// Everything an admin might want to tune lives here, read from .env.
+// Everything an operator might want to tune lives here, read from .env.
 
 import dotenv from 'dotenv';
 
@@ -11,8 +11,34 @@ const num = (v, fallback) => {
 const list = (v) => (v ? v.split(',').map((s) => s.trim()).filter(Boolean) : []);
 
 export const config = {
+  // --- Web server and accounts ---
+  // Where the site is reached from outside, e.g. https://jefbot.example.com (no trailing slash).
+  // JEF_PORT / JEF_HOST win over PORT / HOST, for machines where those are taken.
+  port: num(process.env.JEF_PORT ?? process.env.PORT, 3000),
+  host: process.env.JEF_HOST || process.env.HOST || '0.0.0.0',
+  // Which proxies to believe about the client's IP (X-Forwarded-For), in Express's format:
+  // the default trusts only proxies on this machine or a private network.
+  trustProxy: process.env.TRUST_PROXY || 'loopback, linklocal, uniquelocal',
+  get publicUrl() {
+    return (process.env.PUBLIC_URL || `http://localhost:${this.port}`).replace(/\/+$/, '');
+  },
+  dbFile: process.env.DB_FILE || 'data/jef-bot.db',
+  // Accounts with these emails can see every account (and get the migrated Discord servers).
+  adminEmails: list(process.env.ADMIN_EMAILS).map((e) => e.toLowerCase()),
+  googleClientId: process.env.GOOGLE_CLIENT_ID || null,
+  googleClientSecret: process.env.GOOGLE_CLIENT_SECRET || null,
+  // Local testing only: /auth/dev signs in as any email. Never set this on a public server.
+  // Also refused whenever PUBLIC_URL is https, which means the server is public.
+  devLogin: process.env.DEV_LOGIN === '1' && process.env.NODE_ENV !== 'production' && !(process.env.PUBLIC_URL ?? '').startsWith('https:'),
+  stripeSecretKey: process.env.STRIPE_SECRET_KEY || null,
+  stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET || null,
+
+  // --- Discord ---
   discordToken: process.env.DISCORD_TOKEN,
   clientId: process.env.DISCORD_CLIENT_ID,
+  // Lets "Add to Discord" link the server to the app automatically (OAuth code exchange).
+  // Without it, server managers link with /jef link <code>.
+  discordClientSecret: process.env.DISCORD_CLIENT_SECRET || null,
   // Optional: register slash commands to one guild instantly instead of globally.
   guildId: process.env.DISCORD_GUILD_ID || null,
 
@@ -41,16 +67,17 @@ export const config = {
   // Most Jev input tokens to use per day (UTC); then keyword rules only until midnight. 0 = no cap.
   jevDailyTokenBudget: num(process.env.JEV_DAILY_TOKEN_BUDGET, 5_000_000),
   jevUsageFile: process.env.JEV_USAGE_FILE || 'data/jev-usage.json',
-  settingsFile: process.env.SETTINGS_FILE || 'data/guild-settings.json',
 
   // Griefing and bullying are judged on a member's messages from this many minutes.
   patternWindowMinutes: num(process.env.PATTERN_WINDOW_MINUTES, 30),
 
-  // Channels and roles the bot never moderates.
+  // Channels and roles the bot never moderates, for Discord apps that haven't set their own.
   ignoredChannelIds: list(process.env.IGNORED_CHANNEL_IDS),
   exemptRoleIds: list(process.env.EXEMPT_ROLE_IDS),
 
+  // The single-server bot's data files, imported into the database once (see migrate.js).
   dataFile: process.env.STRIKES_FILE || 'data/strikes.json',
+  settingsFile: process.env.SETTINGS_FILE || 'data/guild-settings.json',
   rulesText: process.env.SERVER_RULES || null,
 };
 

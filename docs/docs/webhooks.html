@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Webhooks: Jef Bot</title>
+  <meta name="description" content="Jef Bot webhooks: event types, payloads, and how to verify the Jef-Signature header in Node and Python. Starter and Pro plans.">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <header class="top">
+    <div class="wrap">
+      <a class="brand" href="/"><img src="/favicon.svg" alt="" width="28" height="28">Jef Bot</a>
+      <nav aria-label="Main">
+        <a href="/docs/" aria-current="page">Docs</a>
+        <a href="/pricing.html">Pricing</a>
+        <a class="hide-sm" href="/docs/api.html">API</a>
+        <a class="hide-sm" href="/app/login">Sign in</a>
+        <a class="button" href="/app/login">Get started</a>
+      </nav>
+    </div>
+  </header>
+  <div class="wrap docs-layout">
+    <nav class="sidebar" aria-label="Documentation">
+      <h2>Getting started</h2>
+      <ul>
+        <li><a href="/docs/">Overview</a></li>
+        <li><a href="/docs/quickstart-game.html">Game chat quickstart</a></li>
+        <li><a href="/docs/quickstart-discord.html">Discord quickstart</a></li>
+        <li><a href="/docs/agents.html">Setup by AI agents</a></li>
+      </ul>
+      <h2>Reference</h2>
+      <ul>
+        <li><a href="/docs/api.html">API reference</a></li>
+        <li><a href="/docs/webhooks.html" aria-current="page">Webhooks</a></li>
+        <li><a href="/docs/rules.html">Rules and punishments</a></li>
+        <li><a href="/openapi.json">OpenAPI spec</a></li>
+        <li><a href="/llms.txt">llms.txt</a></li>
+      </ul>
+      <h2>Account</h2>
+      <ul>
+        <li><a href="/pricing.html">Pricing</a></li>
+        <li><a href="/app">Dashboard</a></li>
+      </ul>
+    </nav>
+    <main id="main" class="content">
+      <h1>Webhooks</h1>
+      <p class="lead">Get every punishment, manual warning and pardon as a signed HTTP request to your own server, for example to post it in your staff chat or keep your own records. Starter and Pro plans.</p>
+
+      <h2 id="setup">Set it up</h2>
+      <p>Set the app's webhook URL in the dashboard, or with an account key:</p>
+      <pre data-lang="curl"><code>curl -s -X PATCH https://jef.example.com/v1/apps/$APP_ID \
+  -H "Authorization: Bearer $JEF_ACCOUNT_KEY" -H "Content-Type: application/json" \
+  -d '{"webhookUrl": "https://game.example.com/hooks/jef"}'</code></pre>
+      <p>The response's <code>app.webhookSecret</code> (<code>whsec_…</code>) is the key for checking signatures. The URL must be <code>https://</code>, without a username or password, and must point to a public address (not <code>localhost</code>, private or internal networks). Remove the webhook with <code>{"webhookUrl": null}</code>; rotate the secret with <code>POST /v1/apps/{appId}/webhook-secret</code>.</p>
+
+      <h2 id="events">Events</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th scope="col">Type</th><th scope="col">When</th></tr></thead>
+          <tbody>
+            <tr><td><code>moderation.action</code></td><td>A message broke the rules and the sender got a strike (a mute or ban). Not sent for "watching" notes, or for messages only deleted because the sender was punished seconds before.</td></tr>
+            <tr><td><code>moderation.manual</code></td><td>Someone warned a user by hand (<code>/warn</code> in Discord, the dashboard or the API).</td></tr>
+            <tr><td><code>moderation.pardon</code></td><td>Someone removed a user's strikes.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Webhooks work for Discord apps and API apps alike.</p>
+
+      <h2 id="payload">Payload</h2>
+      <p>A <code>POST</code> with <code>Content-Type: application/json</code>, <code>User-Agent: JefBot-Webhooks/1</code> and a <code>Jef-Signature</code> header. The body is always <code>{ type, appId, createdAt, data }</code>.</p>
+      <h3 id="payload-action"><code>moderation.action</code></h3>
+      <p><code>data</code> is the <a href="/docs/api.html#obj-result">moderation result</a> plus who said what. <code>text</code> is the full message.</p>
+      <pre data-lang="json"><code>{
+  "type": "moderation.action",
+  "appId": "app_Xk2mP9qLr4Tz",
+  "createdAt": "2026-10-08T12:00:01.204Z",
+  "data": {
+    "userId": "player_18842",
+    "username": "Tobi",
+    "room": "lobby-3",
+    "text": "you are such an idiot, uninstall",
+    "messageId": "msg_99120",
+    "allow": false,
+    "flagged": true,
+    "category": "rudeness",
+    "severity": "medium",
+    "reason": "Insulting another member",
+    "source": "rules",
+    "action": { "type": "mute", "label": "10 minute mute", "durationMs": 600000,
+                "message": "That crossed the line. You have been muted for 10 minutes.", "level": 1 },
+    "strikes": 1,
+    "deleteMessages": [],
+    "watch": null
+  }
+}</code></pre>
+      <p>For Discord apps, <code>room</code> is the channel ID and <code>userId</code> the Discord user ID.</p>
+      <h3 id="payload-manual"><code>moderation.manual</code></h3>
+      <pre data-lang="json"><code>{
+  "type": "moderation.manual",
+  "appId": "app_Xk2mP9qLr4Tz",
+  "createdAt": "2026-10-08T12:05:00.000Z",
+  "data": {
+    "userId": "player_18842",
+    "username": "Tobi",
+    "reason": "Spawn camping new players",
+    "severity": "medium",
+    "action": { "type": "mute", "label": "1 hour mute", "durationMs": 3600000, "message": "…", "level": 2 },
+    "strikes": 2,
+    "by": "mod@example.com"
+  }
+}</code></pre>
+      <h3 id="payload-pardon"><code>moderation.pardon</code></h3>
+      <pre data-lang="json"><code>{
+  "type": "moderation.pardon",
+  "appId": "app_Xk2mP9qLr4Tz",
+  "createdAt": "2026-10-08T12:10:00.000Z",
+  "data": { "userId": "player_18842", "username": null, "removed": 2, "strikes": 0, "by": "Default key" }
+}</code></pre>
+      <p><code>by</code> is the Discord user ID for Discord commands, the signed-in email for the dashboard, or the <code>by</code> field (else the key's name) for API calls.</p>
+
+      <h2 id="verify">Verifying signatures</h2>
+      <p>Each request carries:</p>
+      <pre data-lang="http"><code>Jef-Signature: t=1791460801,v1=5f2b0c…e81a</code></pre>
+      <p><code>t</code> is the Unix time in seconds when it was sent. <code>v1</code> is the hex HMAC-SHA256 of <code>"&lt;t&gt;.&lt;raw body&gt;"</code>, keyed with the app's whole <code>webhookSecret</code> string (including <code>whsec_</code>). To verify:</p>
+      <ol>
+        <li>Read the <strong>raw</strong> request body, before any JSON parsing.</li>
+        <li>Compute the HMAC of <code>t + "." + body</code> and compare it to <code>v1</code> in constant time.</li>
+        <li>Reject it if <code>t</code> is more than 5 minutes from now, so an old request can't be replayed.</li>
+      </ol>
+      <div class="tabs">
+<pre data-lang="Node"><code>// Express. npm install express
+import crypto from 'node:crypto';
+import express from 'express';
+
+const SECRET = process.env.JEF_WEBHOOK_SECRET; // whsec_…
+
+function verify(header, rawBody, secret, toleranceS = 300) {
+  const parts = Object.fromEntries((header ?? '').split(',').map((p) => p.split('=', 2)));
+  const t = Number(parts.t);
+  if (!Number.isInteger(t) || !parts.v1) return false;
+  if (Math.abs(Date.now() / 1000 - t) > toleranceS) return false;
+  const expected = crypto.createHmac('sha256', secret).update(`${t}.${rawBody}`).digest('hex');
+  const a = Buffer.from(expected);
+  const b = Buffer.from(parts.v1);
+  return a.length === b.length &amp;&amp; crypto.timingSafeEqual(a, b);
+}
+
+const app = express();
+app.post('/hooks/jef', express.raw({ type: 'application/json' }), (req, res) => {
+  const raw = req.body.toString('utf8');
+  if (!verify(req.get('Jef-Signature'), raw, SECRET)) return res.status(400).send('bad signature');
+  const event = JSON.parse(raw);
+  if (event.type === 'moderation.action') {
+    console.log(`${event.data.username}: ${event.data.action.label} (${event.data.reason})`);
+  }
+  res.sendStatus(204);
+});
+app.listen(8080);</code></pre>
+<pre data-lang="Python"><code># Flask. pip install flask
+import hashlib, hmac, json, os, time
+from flask import Flask, request, abort
+
+SECRET = os.environ["JEF_WEBHOOK_SECRET"]  # whsec_…
+app = Flask(__name__)
+
+def verify(header, raw_body, secret, tolerance_s=300):
+    parts = dict(p.split("=", 1) for p in (header or "").split(",") if "=" in p)
+    try:
+        t = int(parts["t"])
+    except (KeyError, ValueError):
+        return False
+    if abs(time.time() - t) > tolerance_s or "v1" not in parts:
+        return False
+    expected = hmac.new(secret.encode(), f"{t}.".encode() + raw_body, hashlib.sha256).hexdigest()
+    return hmac.compare_digest(expected, parts["v1"])
+
+@app.post("/hooks/jef")
+def jef_hook():
+    raw = request.get_data()  # raw bytes, before parsing
+    if not verify(request.headers.get("Jef-Signature"), raw, SECRET):
+        abort(400)
+    event = json.loads(raw)
+    if event["type"] == "moderation.action":
+        print(event["data"]["username"], event["data"]["action"]["label"])
+    return "", 204</code></pre>
+      </div>
+
+      <h2 id="delivery">Delivery</h2>
+      <ul>
+        <li><strong>Best effort, no retries.</strong> Each event is sent once, with a 5 second timeout. Redirects aren't followed. If your endpoint is down or answers with an error, that event isn't sent again. Your app's <a href="/docs/api.html#events">history</a> (<code>GET /v1/apps/{appId}/events</code>) is the complete record if you need to catch up.</li>
+        <li><strong>Answer fast</strong> with any <code>2xx</code>; do slow work after responding.</li>
+        <li><strong>Order isn't guaranteed</strong>; use <code>createdAt</code>.</li>
+        <li><strong>Paid plans only.</strong> If the account moves to Free, webhooks stop being sent (the URL is kept).</li>
+        <li>The host must resolve to public IP addresses when the event is sent (IPv4 addresses written in IPv6 form are checked too); otherwise it's skipped. The connection goes to the exact address that was checked.</li>
+      </ul>
+
+      <nav class="pager" aria-label="More pages">
+        <a href="/docs/api.html">← API reference</a>
+        <a href="/docs/rules.html">Rules and punishments →</a>
+      </nav>
+    </main>
+  </div>
+  <footer>
+    <div class="wrap">
+      <span>Jef Bot · AI moderation by Jev</span>
+      <span class="spacer"></span>
+      <a href="/docs/">Docs</a>
+      <a href="/pricing.html">Pricing</a>
+      <a href="/privacy.html">Privacy</a>
+      <a href="/terms.html">Terms</a>
+      <a href="https://github.com/m0dE/jev-mod">GitHub</a>
+      <a href="https://github.com/m0dE/jev-mod/issues">Contact</a>
+    </div>
+  </footer>
+  <script src="/docs/docs.js" defer></script>
+</body>
+</html>

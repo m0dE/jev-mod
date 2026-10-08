@@ -1,0 +1,330 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Setup by AI agents: Jef Bot</title>
+  <meta name="description" content="Step-by-step, copy-pasteable API calls for an AI agent or script to set up Jef Bot headlessly with an account key: create apps with rules and keys, webhooks, Discord linking, usage and upgrades.">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <header class="top">
+    <div class="wrap">
+      <a class="brand" href="/"><img src="/favicon.svg" alt="" width="28" height="28">Jef Bot</a>
+      <nav aria-label="Main">
+        <a href="/docs/" aria-current="page">Docs</a>
+        <a href="/pricing.html">Pricing</a>
+        <a class="hide-sm" href="/docs/api.html">API</a>
+        <a class="hide-sm" href="/app/login">Sign in</a>
+        <a class="button" href="/app/login">Get started</a>
+      </nav>
+    </div>
+  </header>
+  <div class="wrap docs-layout">
+    <nav class="sidebar" aria-label="Documentation">
+      <h2>Getting started</h2>
+      <ul>
+        <li><a href="/docs/">Overview</a></li>
+        <li><a href="/docs/quickstart-game.html">Game chat quickstart</a></li>
+        <li><a href="/docs/quickstart-discord.html">Discord quickstart</a></li>
+        <li><a href="/docs/agents.html" aria-current="page">Setup by AI agents</a></li>
+      </ul>
+      <h2>Reference</h2>
+      <ul>
+        <li><a href="/docs/api.html">API reference</a></li>
+        <li><a href="/docs/webhooks.html">Webhooks</a></li>
+        <li><a href="/docs/rules.html">Rules and punishments</a></li>
+        <li><a href="/openapi.json">OpenAPI spec</a></li>
+        <li><a href="/llms.txt">llms.txt</a></li>
+      </ul>
+      <h2>Account</h2>
+      <ul>
+        <li><a href="/pricing.html">Pricing</a></li>
+        <li><a href="/app">Dashboard</a></li>
+      </ul>
+    </nav>
+    <main id="main" class="content">
+      <h1>Setup by AI agents</h1>
+      <p class="lead">Everything you can do in the dashboard, an AI agent (or a script) can do over the API with an <strong>account key</strong>. A person creates the key once; the agent does the rest. This page is the exact sequence of calls.</p>
+
+      <div class="note">
+        <p><strong>For agents:</strong> this page is also available as plain text in <a href="/llms-full.txt"><code>/llms-full.txt</code></a> (with the full API reference), and the API as <a href="/openapi.json">OpenAPI 3.1</a>. All requests and responses are JSON. Send <code>Content-Type: application/json</code> with every request body.</p>
+      </div>
+
+      <div class="toc">
+        <strong>On this page</strong>
+        <ul>
+          <li><a href="#human">0. What the person does</a></li>
+          <li><a href="#check">1. Check the key and the plan</a></li>
+          <li><a href="#find">2. Look for an existing app first</a></li>
+          <li><a href="#create">3. Create the app with rules and a key</a></li>
+          <li><a href="#rules">4. Add or change rules</a></li>
+          <li><a href="#webhook">5. Set a webhook</a></li>
+          <li><a href="#discord">6. Link a Discord server</a></li>
+          <li><a href="#test">7. Test moderation</a></li>
+          <li><a href="#usage">8. Check usage</a></li>
+          <li><a href="#upgrade">9. Upgrade (a person pays)</a></li>
+          <li><a href="#errors">Errors and retries</a></li>
+          <li><a href="#limits">Limits</a></li>
+          <li><a href="#script">A complete setup script</a></li>
+        </ul>
+      </div>
+
+      <h2 id="human">0. What the person does</h2>
+      <ol>
+        <li>Sign in at <a href="/app/login">/app/login</a> with Google.</li>
+        <li>Go to <a href="/app/account">/app/account</a> and create an <strong>account key</strong>. Copy it; it's shown once.</li>
+        <li>Give the agent two values, as environment variables or secrets (never in a repository):
+          <pre data-lang="shell"><code>export JEF_URL="https://jef.example.com"
+export JEF_ACCOUNT_KEY="jef_acct_…"</code></pre>
+        </li>
+      </ol>
+      <p>An account key can do anything the account owner can: create and delete apps, keys and rules, set webhooks, link Discord servers, read usage, and create Stripe Checkout or billing portal links. It can't pay; payment always happens on a Stripe page a person opens. Revoke it at <a href="/app/account">/app/account</a> (or <code>DELETE /v1/keys/{keyId}</code>) when the agent is done.</p>
+      <div class="warn"><p>The game itself should use an <strong>app key</strong> (<code>jef_app_…</code>), which can only moderate for one app. Don't put the account key in game servers or clients.</p></div>
+
+      <h2 id="check">1. Check the key and the plan</h2>
+      <pre data-lang="curl"><code>curl -s "$JEF_URL/v1/account" -H "Authorization: Bearer $JEF_ACCOUNT_KEY"</code></pre>
+      <pre data-lang="json"><code>{
+  "account": { "id": "acct_Qm3x…", "email": "owner@example.com", "name": "Sam", "plan": "free",
+               "subscriptionStatus": null, "currentPeriodEnd": null, "createdAt": "2026-10-01T09:12:44.000Z" },
+  "limits": { "id": "free", "name": "Free", "priceUsd": 0, "apps": 1, "accountKeys": 1, "aiChecksPerMonth": 2000,
+              "customRules": 3, "historyDays": 7, "webhooks": false, "requestsPerSecond": 5 },
+  "usage": { "month": "2026-10", "messages": 0, "aiChecks": 0, "apps": 0, "accountKeys": 1 },
+  "admin": false,
+  "auth": "account_key"
+}</code></pre>
+      <p>Check <code>auth</code> is <code>"account_key"</code> (an app key returns <code>"app_key"</code> and can't do setup). Compare <code>usage.apps</code> with <code>limits.apps</code> and <code>limits.customRules</code> with the number of rules you plan to add, before creating anything. In <code>limits</code>, <code>null</code> means unlimited.</p>
+
+      <h2 id="find">2. Look for an existing app first</h2>
+      <p><code>POST /v1/apps</code> isn't idempotent: calling it twice makes two apps. Before creating one, list the apps and reuse one with the same name.</p>
+      <pre data-lang="curl"><code>curl -s "$JEF_URL/v1/apps" -H "Authorization: Bearer $JEF_ACCOUNT_KEY" \
+  | jq -r '.apps[] | select(.name == "My Game") | .id'</code></pre>
+      <p>If the app exists, skip to <a href="#rules">step 4</a>. You can't read an existing key's secret again; if you need one, create a new app key (<code>POST /v1/apps/{appId}/keys</code>) and delete the old one.</p>
+
+      <h2 id="create">3. Create the app with rules and a key</h2>
+      <p>One call creates an API app, its custom rules, optionally its webhook, and its first app key:</p>
+      <pre data-lang="curl"><code>curl -s "$JEF_URL/v1/apps" \
+  -H "Authorization: Bearer $JEF_ACCOUNT_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "My Game",
+    "kind": "api",
+    "rules": [
+      { "text": "No sharing real-world addresses, phone numbers or other personal details", "severity": "high" },
+      { "text": "No begging other players for items or currency", "severity": "low" }
+    ]
+  }'</code></pre>
+      <p>Response (<code>201</code>):</p>
+      <pre data-lang="json"><code>{
+  "app": {
+    "id": "app_Xk2mP9qLr4Tz",
+    "name": "My Game",
+    "kind": "api",
+    "discordGuildId": null,
+    "settings": {},
+    "webhookUrl": null,
+    "webhookSecret": null,
+    "inPlan": true,
+    "rules": [
+      { "id": 41, "text": "No sharing real-world addresses, phone numbers or other personal details", "severity": "high", "createdAt": "2026-10-08T12:00:00.000Z" },
+      { "id": 42, "text": "No begging other players for items or currency", "severity": "low", "createdAt": "2026-10-08T12:00:00.000Z" }
+    ],
+    "createdAt": "2026-10-08T12:00:00.000Z"
+  },
+  "appKey": {
+    "key": { "id": "key_7hQ2pW0sLmAa", "kind": "app", "appId": "app_Xk2mP9qLr4Tz", "name": "Default key",
+             "prefix": "jef_app_3kq9", "createdAt": "2026-10-08T12:00:00.000Z", "lastUsedAt": null },
+    "secret": "jef_app_3kq9…"
+  }
+}</code></pre>
+      <ul>
+        <li><strong>Save <code>appKey.secret</code> immediately</strong> (for example into the game server's secret store as <code>JEF_APP_KEY</code>). It is never shown again.</li>
+        <li>Fields: <code>name</code> (required, up to 80 characters), <code>kind</code> (<code>"api"</code> or <code>"discord"</code>, default <code>"api"</code>), <code>rules</code> (each <code>text</code> up to 300 characters, <code>severity</code> <code>low</code> | <code>medium</code> | <code>high</code>, default <code>low</code>), <code>webhookUrl</code> (paid plans), <code>createKey</code> (default <code>true</code>; <code>false</code> skips the app key).</li>
+        <li>The whole call fails if anything is invalid or over a limit, and nothing is created: too many apps or rules give <code>403 plan_limit</code>.</li>
+      </ul>
+
+      <h2 id="rules">4. Add or change rules</h2>
+      <p>Write rules in plain words, the way you'd explain them to a moderator. The severity decides the punishment (<a href="/docs/rules.html#ladder">ladder</a>).</p>
+      <pre data-lang="curl"><code># add
+curl -s "$JEF_URL/v1/apps/$APP_ID/rules" \
+  -H "Authorization: Bearer $JEF_ACCOUNT_KEY" -H "Content-Type: application/json" \
+  -d '{"text": "No spoilers for the new season in general chat", "severity": "low"}'
+# → 201 { "rule": { "id": 43, "text": "…", "severity": "low", "createdAt": "…" } }
+
+# list
+curl -s "$JEF_URL/v1/apps/$APP_ID/rules" -H "Authorization: Bearer $JEF_ACCOUNT_KEY"
+# → { "rules": [ … ] }
+
+# remove (no body; 204 on success, 404 not_found if it's already gone)
+curl -s -X DELETE "$JEF_URL/v1/apps/$APP_ID/rules/43" -H "Authorization: Bearer $JEF_ACCOUNT_KEY"</code></pre>
+      <p>There's no "edit rule" call: to change a rule, add the new one, then delete the old one. To make rules idempotent, list them first and only add texts that aren't there yet.</p>
+
+      <h2 id="webhook">5. Set a webhook</h2>
+      <p>Starter and Pro only (on Free: <code>403 plan_limit</code>). The URL must be public <code>https://</code>.</p>
+      <pre data-lang="curl"><code>curl -s -X PATCH "$JEF_URL/v1/apps/$APP_ID" \
+  -H "Authorization: Bearer $JEF_ACCOUNT_KEY" -H "Content-Type: application/json" \
+  -d '{"webhookUrl": "https://game.example.com/hooks/jef"}'
+# → { "app": { …, "webhookUrl": "https://game.example.com/hooks/jef", "webhookSecret": "whsec_…" } }</code></pre>
+      <p>Store <code>app.webhookSecret</code> where the receiver can verify signatures (see <a href="/docs/webhooks.html#verify">webhooks</a>). You can read it again with <code>GET /v1/apps/{appId}</code> using the account key. Rotate it with <code>POST /v1/apps/{appId}/webhook-secret</code>; remove the webhook with <code>{"webhookUrl": null}</code>.</p>
+
+      <h2 id="discord">6. Link a Discord server</h2>
+      <p>Linking needs a person with <em>Manage Server</em> on the Discord server; the agent prepares everything and hands over one link.</p>
+      <pre data-lang="curl"><code>curl -s "$JEF_URL/v1/apps" \
+  -H "Authorization: Bearer $JEF_ACCOUNT_KEY" -H "Content-Type: application/json" \
+  -d '{"name": "My Discord", "kind": "discord", "rules": [{"text": "No posting game cheats or exploits", "severity": "medium"}]}'</code></pre>
+      <pre data-lang="json"><code>{
+  "app": { "id": "app_Dc9…", "kind": "discord", "discordGuildId": null, … },
+  "discord": {
+    "inviteUrl": "https://discord.com/oauth2/authorize?client_id=…&amp;permissions=…&amp;scope=bot+applications.commands&amp;response_type=code&amp;redirect_uri=…&amp;state=A1B2C3D4E5F6",
+    "linkCode": "A1B2C3D4E5F6",
+    "linkCommand": "/jef link code:A1B2C3D4E5F6",
+    "expiresAt": "2026-10-08T13:00:00.000Z",
+    "autoLink": true
+  }
+}</code></pre>
+      <ol>
+        <li>Give the person <code>discord.inviteUrl</code>. When <code>autoLink</code> is <code>true</code>, adding the bot with it links the server automatically, <strong>but only if that person is signed in to the dashboard, in the same browser, as the account owner</strong> when Discord sends them back (otherwise the dashboard shows <code>reason=signed_out</code> or <code>not_owner</code> and nothing is linked). If that's not the case, or <code>autoLink</code> is <code>false</code>, or the bot is already in the server, they run <code>discord.linkCommand</code> in the server instead. Give them both.</li>
+        <li>Wait until it's linked: poll <code>GET /v1/apps/{appId}</code> every few seconds until <code>app.discordGuildId</code> isn't <code>null</code>.</li>
+        <li>The code expires at <code>expiresAt</code> (1 hour). For a fresh one: <code>POST /v1/apps/{appId}/discord/link</code> (same <code>discord</code> object; the old code stops working).</li>
+        <li>Optionally set the mod log channel and exemptions with <code>PATCH /v1/apps/{appId}</code> <code>{"settings": {"modLogChannelId": "…", "ignoredChannelIds": […], "exemptRoleIds": […]}}</code>, or have the person run <code>/modlog</code>.</li>
+      </ol>
+      <p><code>inviteUrl</code> is <code>null</code> if the server operator hasn't configured a Discord bot.</p>
+
+      <h2 id="test">7. Test moderation</h2>
+      <p>With the account key, pass <code>appId</code>; with the app key you don't need it.</p>
+      <pre data-lang="curl"><code>curl -s "$JEF_URL/v1/moderate" \
+  -H "Authorization: Bearer $JEF_APP_KEY" -H "Content-Type: application/json" \
+  -d '{"userId": "setup-test-user", "username": "SetupTest", "text": "you are an idiot", "room": "test"}' \
+  | jq '{allow, category, severity, action: .action.type, label: .action.label}'
+# → { "allow": false, "category": "rudeness", "severity": "medium", "action": "mute", "label": "10 minute mute" }</code></pre>
+      <p>Test calls are real: they count toward usage and give the test user strikes. Clear them afterwards:</p>
+      <pre data-lang="curl"><code>curl -s "$JEF_URL/v1/apps/$APP_ID/users/setup-test-user/pardon" \
+  -H "Authorization: Bearer $JEF_ACCOUNT_KEY" -H "Content-Type: application/json" -d '{}'
+# → { "removed": 1, "strikes": 0 }</code></pre>
+      <p>Then wire the call into the game server as in the <a href="/docs/quickstart-game.html">game chat quickstart</a>.</p>
+
+      <h2 id="usage">8. Check usage</h2>
+      <pre data-lang="curl"><code>curl -s "$JEF_URL/v1/account" -H "Authorization: Bearer $JEF_ACCOUNT_KEY" \
+  | jq '{plan: .account.plan, aiChecks: .usage.aiChecks, aiLimit: .limits.aiChecksPerMonth, messages: .usage.messages, month: .usage.month}'</code></pre>
+      <p>Usage is per account (all apps together) and per calendar month in UTC. At most a tenth of <code>aiChecksPerMonth</code> (rounded up) can be used in one UTC day. Past either limit, moderation keeps working on the free checks only until it resets, and <code>/v1/moderate</code> responses include <code>"aiSkipped": "quota"</code> where the AI was skipped.</p>
+      <p>Also check that every app has <code>"inPlan": true</code> (in <code>GET /v1/apps</code>). After a downgrade, apps past the plan's count (newest first) have <code>inPlan: false</code>, aren't moderated, and <code>/v1/moderate</code> on them returns <code>403 plan_limit</code>. Likewise only each app's oldest <code>customRules</code> rules apply, and account keys past the plan's <code>accountKeys</code> (newest first) get <code>403 plan_limit</code> on every request.</p>
+
+      <h2 id="upgrade">9. Upgrade (a person pays)</h2>
+      <p>An agent can't pay, but it can prepare the payment page. Check billing first:</p>
+      <pre data-lang="curl"><code>curl -s "$JEF_URL/v1/billing" -H "Authorization: Bearer $JEF_ACCOUNT_KEY"
+# → { "enabled": true, "plan": "free", "subscriptionStatus": null, "currentPeriodEnd": null, "hasCustomer": false }</code></pre>
+      <p>Then get a link for the person:</p>
+      <pre data-lang="curl"><code>curl -s "$JEF_URL/v1/billing/checkout" \
+  -H "Authorization: Bearer $JEF_ACCOUNT_KEY" -H "Content-Type: application/json" \
+  -d '{"plan": "starter"}'
+# → { "url": "https://checkout.stripe.com/c/pay/…", "kind": "checkout" }</code></pre>
+      <ul>
+        <li>Give <code>url</code> to the person to open. When they've paid, <code>GET /v1/account</code> shows the new <code>plan</code> (usually within seconds). Poll it rather than assuming.</li>
+        <li>If the account already has a subscription, the response is <code>"kind": "portal"</code> and the URL is the Stripe customer portal, where they switch plans. Don't create a second subscription.</li>
+        <li><code>plan</code> must be <code>"starter"</code> or <code>"pro"</code> (anything else: <code>400 invalid_request</code>). If billing isn't set up on the server: <code>503 billing_unavailable</code>; <code>enabled: false</code> in <code>GET /v1/billing</code> says so in advance.</li>
+        <li>To cancel, change card or see invoices: <code>POST /v1/billing/portal</code> → <code>{ "url" }</code> (<code>400 no_customer</code> if they never subscribed).</li>
+      </ul>
+
+      <h2 id="errors">Errors and retries</h2>
+      <p>Every error is JSON: <code>{ "error": { "code": "plan_limit", "message": "The Free plan allows 1 app(s). Delete one or upgrade." } }</code>. Branch on <code>code</code>; show <code>message</code> to people.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th scope="col">Status</th><th scope="col"><code>code</code></th><th scope="col">What to do</th></tr></thead>
+          <tbody>
+            <tr><td>400</td><td><code>invalid_request</code>, <code>invalid_json</code></td><td>Fix the request; the message names the field. Don't retry unchanged.</td></tr>
+            <tr><td>400</td><td><code>no_customer</code></td><td>Use <code>/v1/billing/checkout</code> instead of the portal.</td></tr>
+            <tr><td>401</td><td><code>invalid_api_key</code>, <code>unauthorized</code></td><td>The key is wrong or revoked, or missing. Ask the person for a new account key.</td></tr>
+            <tr><td>403</td><td><code>forbidden</code></td><td>You used an app key for something that needs the account key.</td></tr>
+            <tr><td>403</td><td><code>plan_limit</code>, <code>limit</code></td><td>Over the plan's limit (apps, account keys, rules, webhooks) or the 10 app keys per app. Also: moderating an app that's past the plan's app count, or using an account key that's past the plan's key count. Delete something or ask the person to upgrade (<a href="#upgrade">step 9</a>).</td></tr>
+            <tr><td>404</td><td><code>not_found</code></td><td>No such app, key or rule on this account (or an unknown endpoint). Re-list and use current IDs.</td></tr>
+            <tr><td>409</td><td><code>guild_taken</code></td><td>That Discord server is linked to another app.</td></tr>
+            <tr><td>413</td><td><code>too_large</code></td><td>Request bodies are limited to 64 KB.</td></tr>
+            <tr><td>429</td><td><code>rate_limited</code></td><td>Too many <code>/v1/moderate</code> calls for the app. Wait for <code>Retry-After</code> (1 second), then retry, doubling the wait if it repeats.</td></tr>
+            <tr><td>500</td><td><code>internal</code></td><td>Retry later with backoff.</td></tr>
+            <tr><td>502 / 503</td><td><code>billing_error</code>, <code>billing_unavailable</code></td><td>Stripe failed, or billing isn't configured. Retry later or tell the person.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Safe to retry: every <code>GET</code>, <code>PATCH</code> (same body, same result) and <code>DELETE</code> (a second delete gives <code>404</code>, which you can treat as done). Not safe to blindly retry: <code>POST /v1/apps</code>, <code>/keys</code>, <code>/rules</code>, <code>/warn</code> (they create things); list first, then decide. There's no idempotency-key header.</p>
+
+      <h2 id="limits">Limits</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th scope="col"></th><th scope="col">Free</th><th scope="col">Starter</th><th scope="col">Pro</th></tr></thead>
+          <tbody>
+            <tr><td>Apps</td><td>1</td><td>3</td><td>15</td></tr>
+            <tr><td>Account keys</td><td>1</td><td>3</td><td>10</td></tr>
+            <tr><td>App keys per app</td><td>10</td><td>10</td><td>10</td></tr>
+            <tr><td>Custom rules per app</td><td>3</td><td>15</td><td>50</td></tr>
+            <tr><td>AI checks per month</td><td>2,000</td><td>30,000</td><td>200,000</td></tr>
+            <tr><td>AI checks per UTC day (a tenth of the month)</td><td>200</td><td>3,000</td><td>20,000</td></tr>
+            <tr><td>History kept</td><td>7 days</td><td>30 days</td><td>90 days</td></tr>
+            <tr><td>Webhooks</td><td>no</td><td>yes</td><td>yes</td></tr>
+            <tr><td><code>/v1/moderate</code> per second, per app</td><td>5</td><td>20</td><td>50</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Field limits: app name 80, key name 60, rule text 300, <code>userId</code>/<code>username</code>/<code>messageId</code>/<code>room</code> 100, <code>text</code> 4,000 characters; <code>context</code> up to 20 items. The same numbers are at <code>GET /v1/plans</code> (no key needed).</p>
+
+      <h2 id="script">A complete setup script</h2>
+      <p>Idempotent: run it again and it reuses the app and only adds missing rules. Needs <code>curl</code> and <code>jq</code>.</p>
+      <pre data-lang="bash"><code>#!/usr/bin/env bash
+# Usage: JEF_URL=… JEF_ACCOUNT_KEY=jef_acct_… ./setup-jef.sh
+set -euo pipefail
+APP_NAME="My Game"
+RULES='[
+  {"text": "No sharing real-world addresses, phone numbers or other personal details", "severity": "high"},
+  {"text": "No begging other players for items or currency", "severity": "low"}
+]'
+
+api() { # api METHOD PATH [JSON]
+  local args=(-sS -X "$1" "$JEF_URL$2" -H "Authorization: Bearer $JEF_ACCOUNT_KEY" -w '\n%{http_code}')
+  [ $# -ge 3 ] &amp;&amp; args+=(-H "Content-Type: application/json" -d "$3")
+  local out code; out=$(curl "${args[@]}"); code=${out##*$'\n'}; out=${out%$'\n'*}
+  if [ "$code" -ge 400 ]; then echo "$1 $2 → $code $out" >&amp;2; return 1; fi
+  printf '%s' "$out"
+}
+
+[ "$(api GET /v1/account | jq -r .auth)" = account_key ] || { echo "JEF_ACCOUNT_KEY is not an account key" >&amp;2; exit 1; }
+
+APP_ID=$(api GET /v1/apps | jq -r --arg n "$APP_NAME" '[.apps[] | select(.name == $n and .kind == "api")][0].id // empty')
+if [ -z "$APP_ID" ]; then
+  CREATED=$(api POST /v1/apps "$(jq -n --arg n "$APP_NAME" --argjson r "$RULES" '{name: $n, kind: "api", rules: $r}')")
+  APP_ID=$(jq -r .app.id &lt;&lt;&lt;"$CREATED")
+  echo "Created $APP_ID. App key (store it now, it is shown once):"
+  jq -r .appKey.secret &lt;&lt;&lt;"$CREATED"
+else
+  echo "Using existing app $APP_ID"
+  EXISTING=$(api GET "/v1/apps/$APP_ID/rules" | jq -c '[.rules[].text]')
+  jq -c '.[]' &lt;&lt;&lt;"$RULES" | while read -r rule; do
+    if ! jq -e --argjson t "$(jq '.text' &lt;&lt;&lt;"$rule")" 'index($t)' &lt;&lt;&lt;"$EXISTING" >/dev/null; then
+      api POST "/v1/apps/$APP_ID/rules" "$rule" >/dev/null &amp;&amp; echo "Added rule: $(jq -r .text &lt;&lt;&lt;"$rule")"
+    fi
+  done
+fi
+
+api GET /v1/account | jq '{plan: .account.plan, usage: .usage, limits: {apps: .limits.apps, aiChecksPerMonth: .limits.aiChecksPerMonth}}'</code></pre>
+
+      <nav class="pager" aria-label="More pages">
+        <a href="/docs/quickstart-discord.html">← Discord quickstart</a>
+        <a href="/docs/api.html">API reference →</a>
+      </nav>
+    </main>
+  </div>
+  <footer>
+    <div class="wrap">
+      <span>Jef Bot · AI moderation by Jev</span>
+      <span class="spacer"></span>
+      <a href="/docs/">Docs</a>
+      <a href="/pricing.html">Pricing</a>
+      <a href="/privacy.html">Privacy</a>
+      <a href="/terms.html">Terms</a>
+      <a href="https://github.com/m0dE/jev-mod">GitHub</a>
+      <a href="https://github.com/m0dE/jev-mod/issues">Contact</a>
+    </div>
+  </footer>
+  <script src="/docs/docs.js" defer></script>
+</body>
+</html>

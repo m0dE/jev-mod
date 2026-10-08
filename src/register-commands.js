@@ -2,7 +2,7 @@
 
 import { REST, Routes } from 'discord.js';
 import { config } from './config.js';
-import { commands } from './commands.js';
+import { commands } from './discord/commands.js';
 
 if (!config.discordToken || !config.clientId) {
   console.error('Set DISCORD_TOKEN and DISCORD_CLIENT_ID in .env first.');

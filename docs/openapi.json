@@ -1,0 +1,3000 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Jef Bot API",
+    "version": "1.0.0",
+    "summary": "AI chat moderation for Discord servers, game chat and any app.",
+    "description": "The /v1 API of Jef Bot. Authenticate with `Authorization: Bearer <key>`: account keys (jef_acct_…) can do everything on the account; app keys (jef_app_…) can only moderate and read one app (plus warn/pardon its users). Errors are `{ \"error\": { \"code\", \"message\" } }`. Timestamps are ISO 8601 UTC. Guides: /docs/agents.html, /docs/quickstart-game.html. Full text for LLMs: /llms-full.txt.",
+    "license": {
+      "name": "MIT",
+      "identifier": "MIT"
+    }
+  },
+  "servers": [
+    {
+      "url": "/",
+      "description": "This Jef Bot server"
+    }
+  ],
+  "externalDocs": {
+    "description": "Jef Bot documentation",
+    "url": "/docs/"
+  },
+  "security": [
+    {
+      "accountKey": []
+    },
+    {
+      "appKey": []
+    },
+    {
+      "sessionCookie": []
+    }
+  ],
+  "tags": [
+    {
+      "name": "Public",
+      "description": "No authentication needed (an invalid Authorization header still gives 401)."
+    },
+    {
+      "name": "Account",
+      "description": "The calling account, its plan limits and usage."
+    },
+    {
+      "name": "Account keys",
+      "description": "jef_acct_… keys with full access to the account."
+    },
+    {
+      "name": "Apps",
+      "description": "Things being moderated: kind \"api\" (games, any chat) or \"discord\" (one Discord server)."
+    },
+    {
+      "name": "App keys",
+      "description": "jef_app_… keys for one API app: moderation and reads only."
+    },
+    {
+      "name": "Discord",
+      "description": "Linking a Discord app to a Discord server."
+    },
+    {
+      "name": "Custom rules",
+      "description": "An app's own rules in plain words, judged by the AI."
+    },
+    {
+      "name": "Moderation",
+      "description": "Judge a message."
+    },
+    {
+      "name": "Users",
+      "description": "Strikes, manual warnings and pardons for a userId."
+    },
+    {
+      "name": "History",
+      "description": "Moderation events, kept for the plan's historyDays."
+    },
+    {
+      "name": "Billing",
+      "description": "Stripe Checkout and customer portal links for a person to open."
+    }
+  ],
+  "paths": {
+    "/v1/health": {
+      "get": {
+        "operationId": "health",
+        "tags": [
+          "Public"
+        ],
+        "summary": "Health check",
+        "security": [
+          {}
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean",
+                      "const": true
+                    }
+                  },
+                  "required": [
+                    "ok"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          }
+        }
+      }
+    },
+    "/v1/plans": {
+      "get": {
+        "operationId": "listPlans",
+        "tags": [
+          "Public"
+        ],
+        "summary": "Public plans and their limits",
+        "security": [
+          {}
+        ],
+        "responses": {
+          "200": {
+            "description": "Plans",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "plans": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Plan"
+                      }
+                    }
+                  },
+                  "required": [
+                    "plans"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          }
+        }
+      }
+    },
+    "/v1/account": {
+      "get": {
+        "operationId": "getAccount",
+        "tags": [
+          "Account"
+        ],
+        "summary": "The calling account, its limits and usage this month",
+        "security": [
+          {
+            "accountKey": []
+          },
+          {
+            "appKey": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Account",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountInfo"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          }
+        }
+      }
+    },
+    "/v1/keys": {
+      "get": {
+        "operationId": "listAccountKeys",
+        "tags": [
+          "Account keys"
+        ],
+        "summary": "List account keys",
+        "security": [
+          {
+            "accountKey": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Keys",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "keys": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Key"
+                      }
+                    }
+                  },
+                  "required": [
+                    "keys"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          }
+        }
+      },
+      "post": {
+        "operationId": "createAccountKey",
+        "tags": [
+          "Account keys"
+        ],
+        "summary": "Create an account key",
+        "security": [
+          {
+            "accountKey": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "maxLength": 60
+                  }
+                },
+                "required": []
+              },
+              "example": {
+                "name": "CI setup agent"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created; the secret is shown only once",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NewKey"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          }
+        }
+      }
+    },
+    "/v1/keys/{keyId}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/keyId"
+        }
+      ],
+      "delete": {
+        "operationId": "deleteAccountKey",
+        "tags": [
+          "Account keys"
+        ],
+        "summary": "Delete an account key",
+        "security": [
+          {
+            "accountKey": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "$ref": "#/components/responses/NoContent"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          }
+        }
+      }
+    },
+    "/v1/apps": {
+      "get": {
+        "operationId": "listApps",
+        "tags": [
+          "Apps"
+        ],
+        "summary": "List apps",
+        "security": [
+          {
+            "accountKey": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Apps",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "apps": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/App"
+                      }
+                    }
+                  },
+                  "required": [
+                    "apps"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          }
+        }
+      },
+      "post": {
+        "operationId": "createApp",
+        "tags": [
+          "Apps"
+        ],
+        "summary": "Create an app (with rules, webhook and first app key in one call)",
+        "security": [
+          {
+            "accountKey": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAppRequest"
+              },
+              "example": {
+                "name": "My Game",
+                "kind": "api",
+                "rules": [
+                  {
+                    "text": "No begging other players for items or currency",
+                    "severity": "low"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateAppResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          }
+        }
+      }
+    },
+    "/v1/apps/{appId}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/appId"
+        }
+      ],
+      "get": {
+        "operationId": "getApp",
+        "tags": [
+          "Apps"
+        ],
+        "summary": "Get an app",
+        "security": [
+          {
+            "accountKey": []
+          },
+          {
+            "appKey": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "App",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "app": {
+                      "$ref": "#/components/schemas/App"
+                    }
+                  },
+                  "required": [
+                    "app"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          }
+        }
+      },
+      "patch": {
+        "operationId": "updateApp",
+        "tags": [
+          "Apps"
+        ],
+        "summary": "Update name, webhook URL or Discord settings",
+        "security": [
+          {
+            "accountKey": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateAppRequest"
+              },
+              "example": {
+                "webhookUrl": "https://game.example.com/hooks/jef"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "app": {
+                      "$ref": "#/components/schemas/App"
+                    }
+                  },
+                  "required": [
+                    "app"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteApp",
+        "tags": [
+          "Apps"
+        ],
+        "summary": "Delete an app and all its data",
+        "security": [
+          {
+            "accountKey": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "$ref": "#/components/responses/NoContent"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          }
+        }
+      }
+    },
+    "/v1/apps/{appId}/webhook-secret": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/appId"
+        }
+      ],
+      "post": {
+        "operationId": "rotateWebhookSecret",
+        "tags": [
+          "Apps"
+        ],
+        "summary": "Rotate the webhook signing secret",
+        "security": [
+          {
+            "accountKey": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "New secret",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "webhookSecret": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "webhookSecret"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          }
+        }
+      }
+    },
+    "/v1/apps/{appId}/keys": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/appId"
+        }
+      ],
+      "get": {
+        "operationId": "listAppKeys",
+        "tags": [
+          "App keys"
+        ],
+        "summary": "List an app's keys",
+        "security": [
+          {
+            "accountKey": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Keys",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "keys": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Key"
+                      }
+                    }
+                  },
+                  "required": [
+                    "keys"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          }
+        }
+      },
+      "post": {
+        "operationId": "createAppKey",
+        "tags": [
+          "App keys"
+        ],
+        "summary": "Create an app key (API apps; at most 10 per app)",
+        "security": [
+          {
+            "accountKey": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "maxLength": 60
+                  }
+                },
+                "required": []
+              },
+              "example": {
+                "name": "EU game servers"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created; the secret is shown only once",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NewKey"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          }
+        }
+      }
+    },
+    "/v1/apps/{appId}/keys/{keyId}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/appId"
+        },
+        {
+          "$ref": "#/components/parameters/keyId"
+        }
+      ],
+      "delete": {
+        "operationId": "deleteAppKey",
+        "tags": [
+          "App keys"
+        ],
+        "summary": "Delete an app key",
+        "security": [
+          {
+            "accountKey": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "$ref": "#/components/responses/NoContent"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          }
+        }
+      }
+    },
+    "/v1/apps/{appId}/discord/link": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/appId"
+        }
+      ],
+      "post": {
+        "operationId": "createDiscordLink",
+        "tags": [
+          "Discord"
+        ],
+        "summary": "New invite link and link code (valid 1 hour)",
+        "security": [
+          {
+            "accountKey": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Link",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DiscordLink"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          }
+        }
+      }
+    },
+    "/v1/apps/{appId}/discord": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/appId"
+        }
+      ],
+      "delete": {
+        "operationId": "unlinkDiscord",
+        "tags": [
+          "Discord"
+        ],
+        "summary": "Unlink the Discord server",
+        "security": [
+          {
+            "accountKey": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "$ref": "#/components/responses/NoContent"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          }
+        }
+      }
+    },
+    "/v1/apps/{appId}/rules": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/appId"
+        }
+      ],
+      "get": {
+        "operationId": "listRules",
+        "tags": [
+          "Custom rules"
+        ],
+        "summary": "List custom rules",
+        "security": [
+          {
+            "accountKey": []
+          },
+          {
+            "appKey": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Rules",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "rules": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Rule"
+                      }
+                    }
+                  },
+                  "required": [
+                    "rules"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          }
+        }
+      },
+      "post": {
+        "operationId": "addRule",
+        "tags": [
+          "Custom rules"
+        ],
+        "summary": "Add a custom rule",
+        "security": [
+          {
+            "accountKey": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RuleInput"
+              },
+              "example": {
+                "text": "No spoilers for the new season in general chat",
+                "severity": "low"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "rule": {
+                      "$ref": "#/components/schemas/Rule"
+                    }
+                  },
+                  "required": [
+                    "rule"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          }
+        }
+      }
+    },
+    "/v1/apps/{appId}/rules/{ruleId}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/appId"
+        },
+        {
+          "$ref": "#/components/parameters/ruleId"
+        }
+      ],
+      "delete": {
+        "operationId": "deleteRule",
+        "tags": [
+          "Custom rules"
+        ],
+        "summary": "Delete a custom rule",
+        "security": [
+          {
+            "accountKey": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "$ref": "#/components/responses/NoContent"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          }
+        }
+      }
+    },
+    "/v1/moderate": {
+      "post": {
+        "operationId": "moderate",
+        "tags": [
+          "Moderation"
+        ],
+        "summary": "Judge a message and get the action to take",
+        "description": "Records a strike and history when the message breaks a rule. Rate limited per app by plan (5/20/50 per second, bursts to twice that; 429 with Retry-After: 1). 403 plan_limit when the app has inPlan false. Call it from your server, never from a game client.",
+        "security": [
+          {
+            "accountKey": []
+          },
+          {
+            "appKey": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ModerateRequest"
+              },
+              "example": {
+                "userId": "player_18842",
+                "username": "Tobi",
+                "text": "you are such an idiot, uninstall",
+                "messageId": "msg_99120",
+                "room": "lobby-3"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Verdict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModerationResult"
+                },
+                "example": {
+                  "messageId": "msg_99120",
+                  "allow": false,
+                  "flagged": true,
+                  "category": "rudeness",
+                  "severity": "medium",
+                  "reason": "Insulting another member",
+                  "source": "rules",
+                  "action": {
+                    "type": "mute",
+                    "label": "10 minute mute",
+                    "durationMs": 600000,
+                    "message": "That crossed the line. You have been muted for 10 minutes.",
+                    "level": 1
+                  },
+                  "strikes": 1,
+                  "deleteMessages": [],
+                  "watch": null
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          },
+          "413": {
+            "$ref": "#/components/responses/E413"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          }
+        }
+      }
+    },
+    "/v1/apps/{appId}/users/{userId}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/appId"
+        },
+        {
+          "$ref": "#/components/parameters/userId"
+        }
+      ],
+      "get": {
+        "operationId": "getUser",
+        "tags": [
+          "Users"
+        ],
+        "summary": "A user's active strikes and next punishments",
+        "security": [
+          {
+            "accountKey": []
+          },
+          {
+            "appKey": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Standing",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserStanding"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          }
+        }
+      }
+    },
+    "/v1/apps/{appId}/users/{userId}/warn": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/appId"
+        },
+        {
+          "$ref": "#/components/parameters/userId"
+        }
+      ],
+      "post": {
+        "operationId": "warnUser",
+        "tags": [
+          "Users"
+        ],
+        "summary": "Manually punish a user on the same ladder",
+        "security": [
+          {
+            "accountKey": []
+          },
+          {
+            "appKey": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WarnRequest"
+              },
+              "example": {
+                "reason": "Spawn camping new players",
+                "severity": "medium"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Warned",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WarnResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          }
+        }
+      }
+    },
+    "/v1/apps/{appId}/users/{userId}/pardon": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/appId"
+        },
+        {
+          "$ref": "#/components/parameters/userId"
+        }
+      ],
+      "post": {
+        "operationId": "pardonUser",
+        "tags": [
+          "Users"
+        ],
+        "summary": "Remove a user's newest strikes (all by default)",
+        "security": [
+          {
+            "accountKey": []
+          },
+          {
+            "appKey": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PardonRequest"
+              },
+              "example": {}
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Pardoned",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PardonResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          }
+        }
+      }
+    },
+    "/v1/apps/{appId}/events": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/appId"
+        }
+      ],
+      "get": {
+        "operationId": "listEvents",
+        "tags": [
+          "History"
+        ],
+        "summary": "Moderation history, newest first",
+        "security": [
+          {
+            "accountKey": []
+          },
+          {
+            "appKey": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 50,
+              "minimum": 1,
+              "maximum": 200
+            },
+            "description": "Clamped to 1–200."
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Only events with a smaller id (use nextBefore)."
+          },
+          {
+            "name": "userId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Events",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          }
+        }
+      }
+    },
+    "/v1/billing": {
+      "get": {
+        "operationId": "getBilling",
+        "tags": [
+          "Billing"
+        ],
+        "summary": "Billing status",
+        "security": [
+          {
+            "accountKey": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Billing",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Billing"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          }
+        }
+      }
+    },
+    "/v1/billing/checkout": {
+      "post": {
+        "operationId": "createCheckout",
+        "tags": [
+          "Billing"
+        ],
+        "summary": "Stripe Checkout URL for a person to subscribe (or the portal if already subscribed)",
+        "security": [
+          {
+            "accountKey": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CheckoutRequest"
+              },
+              "example": {
+                "plan": "starter"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "URL",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckoutResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "502": {
+            "$ref": "#/components/responses/E502"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        }
+      }
+    },
+    "/v1/billing/portal": {
+      "post": {
+        "operationId": "createPortalSession",
+        "tags": [
+          "Billing"
+        ],
+        "summary": "Stripe customer portal URL (change plan, card, invoices, cancel)",
+        "security": [
+          {
+            "accountKey": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "URL",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PortalResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "502": {
+            "$ref": "#/components/responses/E502"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        }
+      }
+    }
+  },
+  "webhooks": {
+    "moderationEvent": {
+      "post": {
+        "operationId": "moderationEvent",
+        "summary": "Moderation event sent to the app's webhookUrl (paid plans)",
+        "description": "Signed with the header `Jef-Signature: t=<unix seconds>,v1=<hex HMAC-SHA256 of \"<t>.<raw body>\" keyed with the app's webhookSecret>`. One attempt, 5 second timeout, no retries.",
+        "parameters": [
+          {
+            "name": "Jef-Signature",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WebhookEvent"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Any 2xx acknowledges it."
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "accountKey": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "jef_acct_…",
+        "description": "Account key: full access to the account."
+      },
+      "appKey": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "jef_app_…",
+        "description": "App key: moderation and reads for one app."
+      },
+      "sessionCookie": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "jef_session",
+        "description": "Dashboard session after Google sign-in. Changes must be same-origin JSON."
+      }
+    },
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "description": "Machine-readable code, e.g. invalid_request, unauthorized, invalid_api_key, forbidden, plan_limit, limit, not_found, guild_taken, rate_limited, invalid_json, too_large, bad_origin, json_required, no_customer, billing_unavailable, billing_error, internal."
+              },
+              "message": {
+                "type": "string",
+                "description": "Human-readable explanation."
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ]
+          }
+        },
+        "required": [
+          "error"
+        ]
+      },
+      "Account": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "examples": [
+              "acct_Qm3xYb0aTt9L"
+            ]
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "plan": {
+            "type": "string",
+            "enum": [
+              "free",
+              "starter",
+              "pro",
+              "internal"
+            ]
+          },
+          "subscriptionStatus": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Stripe's subscription status (active, trialing, past_due, canceled, unpaid, …) or null."
+          },
+          "currentPeriodEnd": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "name",
+          "plan",
+          "subscriptionStatus",
+          "currentPeriodEnd",
+          "createdAt"
+        ]
+      },
+      "PlanLimits": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "enum": [
+              "free",
+              "starter",
+              "pro",
+              "internal"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "priceUsd": {
+            "type": "number",
+            "description": "Monthly price in US dollars."
+          },
+          "apps": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "null = unlimited"
+          },
+          "accountKeys": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "aiChecksPerMonth": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "Messages that may reach the AI per calendar month (UTC), per account; at most a tenth (rounded up) per UTC day. null = unlimited."
+          },
+          "customRules": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "Custom rules per app."
+          },
+          "historyDays": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "webhooks": {
+            "type": "boolean"
+          },
+          "requestsPerSecond": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "POST /v1/moderate requests per second, per app (bursts up to twice this)."
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "priceUsd",
+          "apps",
+          "accountKeys",
+          "aiChecksPerMonth",
+          "customRules",
+          "historyDays",
+          "webhooks",
+          "requestsPerSecond"
+        ]
+      },
+      "Plan": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PlanLimits"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "purchasable": {
+                "type": "boolean",
+                "description": "Whether this server can sell the plan (Free is always true)."
+              }
+            },
+            "required": [
+              "purchasable"
+            ]
+          }
+        ]
+      },
+      "Usage": {
+        "type": "object",
+        "properties": {
+          "month": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}$",
+            "examples": [
+              "2026-10"
+            ]
+          },
+          "messages": {
+            "type": "integer",
+            "description": "Messages moderated this month, all apps."
+          },
+          "aiChecks": {
+            "type": "integer",
+            "description": "AI checks used this month, all apps."
+          },
+          "apps": {
+            "type": "integer"
+          },
+          "accountKeys": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "month",
+          "messages",
+          "aiChecks",
+          "apps",
+          "accountKeys"
+        ]
+      },
+      "AccountInfo": {
+        "type": "object",
+        "properties": {
+          "account": {
+            "$ref": "#/components/schemas/Account"
+          },
+          "limits": {
+            "$ref": "#/components/schemas/PlanLimits"
+          },
+          "usage": {
+            "$ref": "#/components/schemas/Usage"
+          },
+          "admin": {
+            "type": "boolean"
+          },
+          "auth": {
+            "type": "string",
+            "enum": [
+              "session",
+              "account_key",
+              "app_key"
+            ]
+          }
+        },
+        "required": [
+          "account",
+          "limits",
+          "usage",
+          "admin",
+          "auth"
+        ]
+      },
+      "Key": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "examples": [
+              "key_7hQ2pW0sLmAa"
+            ]
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "account",
+              "app"
+            ]
+          },
+          "appId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The app, for app keys; null for account keys."
+          },
+          "name": {
+            "type": "string"
+          },
+          "prefix": {
+            "type": "string",
+            "description": "First characters of the secret, e.g. jef_app_3kq9."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "lastUsedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "Updated at most once a minute."
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "appId",
+          "name",
+          "prefix",
+          "createdAt",
+          "lastUsedAt"
+        ]
+      },
+      "NewKey": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "$ref": "#/components/schemas/Key"
+          },
+          "secret": {
+            "type": "string",
+            "description": "The full key (jef_acct_… or jef_app_…). Shown only this once."
+          }
+        },
+        "required": [
+          "key",
+          "secret"
+        ]
+      },
+      "Rule": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "text": {
+            "type": "string",
+            "maxLength": 300
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "text",
+          "severity",
+          "createdAt"
+        ]
+      },
+      "RuleInput": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 300,
+            "description": "The rule in plain words."
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ],
+            "default": "low"
+          }
+        },
+        "required": [
+          "text"
+        ]
+      },
+      "AppSettings": {
+        "type": "object",
+        "properties": {
+          "modLogChannelId": {
+            "type": "string",
+            "pattern": "^\\d{5,25}$"
+          },
+          "ignoredChannelIds": {
+            "type": "array",
+            "maxItems": 100,
+            "items": {
+              "type": "string",
+              "pattern": "^\\d{5,25}$"
+            }
+          },
+          "exemptRoleIds": {
+            "type": "array",
+            "maxItems": 100,
+            "items": {
+              "type": "string",
+              "pattern": "^\\d{5,25}$"
+            }
+          }
+        },
+        "required": [],
+        "description": "Discord apps only. Unset settings are absent."
+      },
+      "App": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "examples": [
+              "app_Xk2mP9qLr4Tz"
+            ]
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 80
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "api",
+              "discord"
+            ]
+          },
+          "discordGuildId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The linked Discord server, for Discord apps."
+          },
+          "settings": {
+            "$ref": "#/components/schemas/AppSettings"
+          },
+          "webhookUrl": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uri"
+          },
+          "webhookSecret": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "whsec_… signing secret. Omitted when read with an app key."
+          },
+          "inPlan": {
+            "type": "boolean",
+            "description": "Within the plan's app count (apps counted oldest first). false after a downgrade: not moderated until apps are deleted or the plan is upgraded."
+          },
+          "rules": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Rule"
+            },
+            "description": "All rules; only the oldest up to the plan's customRules are applied."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "kind",
+          "discordGuildId",
+          "settings",
+          "webhookUrl",
+          "inPlan",
+          "rules",
+          "createdAt"
+        ]
+      },
+      "DiscordLink": {
+        "type": "object",
+        "properties": {
+          "inviteUrl": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uri",
+            "description": "\"Add to server\" link; null if the server has no Discord bot configured."
+          },
+          "linkCode": {
+            "type": "string",
+            "examples": [
+              "A1B2C3D4E5F6"
+            ]
+          },
+          "linkCommand": {
+            "type": "string",
+            "examples": [
+              "/jef link code:A1B2C3D4E5F6"
+            ]
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "1 hour after creation."
+          },
+          "autoLink": {
+            "type": "boolean",
+            "description": "Adding the bot with inviteUrl links the server automatically, if the person is signed in to the dashboard as the app's owner when Discord redirects back; otherwise use linkCommand."
+          }
+        },
+        "required": [
+          "inviteUrl",
+          "linkCode",
+          "linkCommand",
+          "expiresAt",
+          "autoLink"
+        ]
+      },
+      "CreateAppRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "api",
+              "discord"
+            ],
+            "default": "api"
+          },
+          "rules": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RuleInput"
+            },
+            "description": "Up to the plan's customRules."
+          },
+          "webhookUrl": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uri",
+            "description": "Public https URL. Paid plans only."
+          },
+          "createKey": {
+            "type": "boolean",
+            "default": true,
+            "description": "API apps: also create an app key. Ignored for Discord apps."
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "CreateAppResponse": {
+        "type": "object",
+        "properties": {
+          "app": {
+            "$ref": "#/components/schemas/App"
+          },
+          "appKey": {
+            "$ref": "#/components/schemas/NewKey",
+            "description": "API apps, unless createKey is false."
+          },
+          "discord": {
+            "$ref": "#/components/schemas/DiscordLink",
+            "description": "Discord apps."
+          }
+        },
+        "required": [
+          "app"
+        ]
+      },
+      "UpdateAppRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "webhookUrl": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Paid plans. null or \"\" removes it."
+          },
+          "settings": {
+            "type": "object",
+            "description": "Discord apps only. Merged into current settings; null clears one.",
+            "properties": {
+              "modLogChannelId": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "pattern": "^\\d{5,25}$"
+              },
+              "ignoredChannelIds": {
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "maxItems": 100,
+                "items": {
+                  "type": "string",
+                  "pattern": "^\\d{5,25}$"
+                }
+              },
+              "exemptRoleIds": {
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "maxItems": 100,
+                "items": {
+                  "type": "string",
+                  "pattern": "^\\d{5,25}$"
+                }
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "required": []
+      },
+      "Action": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "none",
+              "delete",
+              "mute",
+              "ban"
+            ]
+          },
+          "label": {
+            "type": "string",
+            "examples": [
+              "10 minute mute"
+            ]
+          },
+          "durationMs": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "Mute length; null for none, delete and ban (permanent)."
+          },
+          "message": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Text to show the user; null for none and delete."
+          },
+          "level": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 5,
+            "description": "Ladder step (5 = ban). Present on mute and ban."
+          }
+        },
+        "required": [
+          "type",
+          "label",
+          "durationMs",
+          "message"
+        ]
+      },
+      "DeleteMessage": {
+        "type": "object",
+        "properties": {
+          "messageId": {
+            "type": "string"
+          },
+          "room": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "messageId",
+          "room"
+        ]
+      },
+      "ModerateRequest": {
+        "type": "object",
+        "properties": {
+          "appId": {
+            "type": "string",
+            "description": "Required with an account key or session; optional with an app key (must match)."
+          },
+          "userId": {
+            "type": [
+              "string",
+              "number"
+            ],
+            "maxLength": 100,
+            "description": "Stable ID of the sender."
+          },
+          "username": {
+            "type": "string",
+            "maxLength": 100
+          },
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
+          },
+          "messageId": {
+            "type": "string",
+            "maxLength": 100
+          },
+          "room": {
+            "type": "string",
+            "maxLength": 100,
+            "description": "Channel, lobby or match. The last 5 messages per room are used as context when context is not sent."
+          },
+          "replyTo": {
+            "oneOf": [
+              {
+                "type": "string",
+                "maxLength": 400
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "username": {
+                    "type": "string",
+                    "maxLength": 100
+                  },
+                  "text": {
+                    "type": "string",
+                    "maxLength": 300
+                  }
+                },
+                "required": [
+                  "text"
+                ]
+              }
+            ]
+          },
+          "context": {
+            "type": "array",
+            "maxItems": 20,
+            "items": {
+              "oneOf": [
+                {
+                  "type": "string",
+                  "maxLength": 400
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "username": {
+                      "type": "string",
+                      "maxLength": 100
+                    },
+                    "text": {
+                      "type": "string",
+                      "maxLength": 300
+                    }
+                  },
+                  "required": [
+                    "text"
+                  ]
+                }
+              ]
+            },
+            "description": "Earlier messages, oldest first."
+          }
+        },
+        "required": [
+          "userId",
+          "text"
+        ]
+      },
+      "ModerationResult": {
+        "type": "object",
+        "properties": {
+          "messageId": {
+            "type": "string"
+          },
+          "allow": {
+            "type": "boolean"
+          },
+          "flagged": {
+            "type": "boolean"
+          },
+          "category": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "griefing",
+              "toxicity",
+              "harassment",
+              "hate",
+              "threat",
+              "negativity",
+              "rudeness",
+              "spam",
+              "scam",
+              "custom",
+              null
+            ]
+          },
+          "severity": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "low",
+              "medium",
+              "high",
+              null
+            ]
+          },
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "source": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "spam",
+              "rules",
+              "jev",
+              "ai",
+              null
+            ]
+          },
+          "action": {
+            "$ref": "#/components/schemas/Action"
+          },
+          "strikes": {
+            "type": "integer",
+            "description": "Active strikes after this message."
+          },
+          "deleteMessages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DeleteMessage"
+            }
+          },
+          "watch": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "griefing",
+              "harassment",
+              null
+            ]
+          },
+          "aiSkipped": {
+            "type": "string",
+            "enum": [
+              "quota"
+            ],
+            "description": "Present only when the AI was skipped because the account's AI checks for the month, or for the UTC day (a tenth of the monthly allowance, rounded up), are used up."
+          }
+        },
+        "required": [
+          "messageId",
+          "allow",
+          "flagged",
+          "category",
+          "severity",
+          "reason",
+          "source",
+          "action",
+          "strikes",
+          "deleteMessages",
+          "watch"
+        ]
+      },
+      "Strike": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "until": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "category": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "severity": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "excerpt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 200
+          },
+          "by": {
+            "type": "string",
+            "description": "\"auto\" or who issued a manual warning."
+          }
+        },
+        "required": [
+          "id",
+          "at",
+          "until",
+          "category",
+          "severity",
+          "reason",
+          "excerpt",
+          "by"
+        ]
+      },
+      "NextStep": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "mute",
+              "ban"
+            ]
+          },
+          "label": {
+            "type": "string"
+          },
+          "durationMs": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "label",
+          "durationMs",
+          "message"
+        ]
+      },
+      "UserStanding": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string"
+          },
+          "strikes": {
+            "type": "integer"
+          },
+          "active": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Strike"
+            }
+          },
+          "next": {
+            "type": "object",
+            "properties": {
+              "low": {
+                "$ref": "#/components/schemas/NextStep"
+              },
+              "medium": {
+                "$ref": "#/components/schemas/NextStep"
+              },
+              "high": {
+                "$ref": "#/components/schemas/NextStep"
+              }
+            },
+            "required": [
+              "low",
+              "medium",
+              "high"
+            ]
+          }
+        },
+        "required": [
+          "userId",
+          "strikes",
+          "active",
+          "next"
+        ]
+      },
+      "WarnRequest": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 300
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ],
+            "default": "medium"
+          },
+          "username": {
+            "type": "string",
+            "maxLength": 100
+          },
+          "by": {
+            "type": "string",
+            "maxLength": 100,
+            "description": "Who issued it; defaults to the signed-in email or the key name."
+          }
+        },
+        "required": [
+          "reason"
+        ]
+      },
+      "WarnResult": {
+        "type": "object",
+        "properties": {
+          "strikes": {
+            "type": "integer"
+          },
+          "action": {
+            "$ref": "#/components/schemas/Action"
+          }
+        },
+        "required": [
+          "strikes",
+          "action"
+        ]
+      },
+      "PardonRequest": {
+        "type": "object",
+        "properties": {
+          "count": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "How many of the newest active strikes to remove; all when omitted."
+          },
+          "by": {
+            "type": "string",
+            "maxLength": 100
+          }
+        },
+        "required": []
+      },
+      "PardonResult": {
+        "type": "object",
+        "properties": {
+          "removed": {
+            "type": "integer"
+          },
+          "strikes": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "removed",
+          "strikes"
+        ]
+      },
+      "Event": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "action",
+              "watch",
+              "manual",
+              "pardon"
+            ]
+          },
+          "userId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "username": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "room": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "messageId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "excerpt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 500
+          },
+          "category": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "severity": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "source": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "action": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The punishment's label."
+          },
+          "strikes": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "by": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "at",
+          "type",
+          "userId",
+          "username",
+          "room",
+          "messageId",
+          "excerpt",
+          "category",
+          "severity",
+          "reason",
+          "source",
+          "action",
+          "strikes",
+          "by"
+        ]
+      },
+      "EventPage": {
+        "type": "object",
+        "properties": {
+          "events": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Event"
+            }
+          },
+          "nextBefore": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "Pass as ?before= for the next (older) page."
+          }
+        },
+        "required": [
+          "events",
+          "nextBefore"
+        ]
+      },
+      "Billing": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "plan": {
+            "type": "string",
+            "enum": [
+              "free",
+              "starter",
+              "pro",
+              "internal"
+            ]
+          },
+          "subscriptionStatus": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "currentPeriodEnd": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "hasCustomer": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "enabled",
+          "plan",
+          "subscriptionStatus",
+          "currentPeriodEnd",
+          "hasCustomer"
+        ]
+      },
+      "CheckoutRequest": {
+        "type": "object",
+        "properties": {
+          "plan": {
+            "type": "string",
+            "enum": [
+              "starter",
+              "pro"
+            ]
+          }
+        },
+        "required": [
+          "plan"
+        ]
+      },
+      "CheckoutResult": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "description": "A Stripe page for a person to open."
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "checkout",
+              "portal"
+            ],
+            "description": "portal when the account already has a subscription."
+          }
+        },
+        "required": [
+          "url",
+          "kind"
+        ]
+      },
+      "PortalResult": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string",
+            "format": "uri"
+          }
+        },
+        "required": [
+          "url"
+        ]
+      },
+      "WebhookEvent": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "moderation.action",
+              "moderation.manual",
+              "moderation.pardon"
+            ]
+          },
+          "appId": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "data": {
+            "type": "object",
+            "description": "moderation.action: ModerationResult plus userId, username, room, text. moderation.manual: userId, username, reason, severity, action, strikes, by. moderation.pardon: userId, username, removed, strikes, by."
+          }
+        },
+        "required": [
+          "type",
+          "appId",
+          "createdAt",
+          "data"
+        ]
+      }
+    },
+    "responses": {
+      "E400": {
+        "description": "invalid_request, invalid_json (or no_customer for the billing portal)",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "E401": {
+        "description": "unauthorized (no credentials) or invalid_api_key",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "E403": {
+        "description": "forbidden (app key where an account is needed), plan_limit (over a plan limit, an app with inPlan false, or an account key past the plan's key count), limit, or bad_origin",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "E404": {
+        "description": "not_found",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "E413": {
+        "description": "too_large (body over 64 KB)",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "E429": {
+        "description": "rate_limited",
+        "headers": {
+          "Retry-After": {
+            "description": "Seconds to wait (1).",
+            "schema": {
+              "type": "integer",
+              "const": 1
+            }
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "E502": {
+        "description": "billing_error (Stripe failed)",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "E503": {
+        "description": "billing_unavailable",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "NoContent": {
+        "description": "Done (no body)."
+      }
+    },
+    "parameters": {
+      "appId": {
+        "name": "appId",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      },
+      "keyId": {
+        "name": "keyId",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      },
+      "ruleId": {
+        "name": "ruleId",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer"
+        }
+      },
+      "userId": {
+        "name": "userId",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

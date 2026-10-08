@@ -1,17 +1,15 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
-import os from 'node:os';
-import path from 'node:path';
 
 import { createRuleClassifier, normalize } from '../src/rules.js';
-import { StrikeStore } from '../src/strikes.js';
-import { punishmentFor, enforce } from '../src/enforce.js';
+import { punishmentFor } from '../src/ladder.js';
+import { enforce } from '../src/discord/enforce.js';
+import { openDb } from '../src/db.js';
+import { createModerator } from '../src/moderation.js';
 import { MessageHistory } from '../src/history.js';
 import { checkSpam } from '../src/spam.js';
 import { DailyBudget } from '../src/budget.js';
 import { createGate } from '../src/gate.js';
-import { GuildSettings } from '../src/guild-settings.js';
 import { isTrivial } from '../src/classifier.js';
 import { looksLikeScam } from '../src/rules.js';
 import { createClassifier } from '../src/classifier.js';
@@ -27,7 +25,15 @@ const suspicious = { check: async () => 1 };
 const unlimited = new DailyBudget({ limit: 0 });
 
 const rules = createRuleClassifier({ blockedWords: ['badword'] });
-const tmpFile = () => path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'jev-mod-')), 'strikes.json');
+
+/** An in-memory database with one Discord app, and a clock the tests can move. */
+function setupDb() {
+  const clock = { now: Date.now() };
+  const db = openDb(':memory:', { now: () => clock.now });
+  const account = db.accounts.create({ email: 'owner@example.com', plan: 'internal' });
+  const app = db.apps.create({ accountId: account.id, name: 'Test Server', kind: 'discord' });
+  return { db, app, clock };
+}
 
 test('rules flag toxic, rude, griefing and negative messages', () => {
   const cases = {
@@ -79,30 +85,26 @@ test('punishment starts at the severity and escalates with each active offense',
 });
 
 test('offenses cool down: low and medium after a day, high after 30 days', () => {
-  const file = tmpFile();
-  let now = Date.now();
-  const store = new StrikeStore(file, { now: () => now });
-  store.add('g', 'u', { category: 'rudeness', severity: 'low', reason: 'r', cooldownMs: DAY });
-  assert.equal(store.add('g', 'u', { category: 'threat', severity: 'high', reason: 'r', cooldownMs: 30 * DAY }), 2);
+  const { db, app, clock } = setupDb();
+  db.strikes.add(app.id, 'u', { category: 'rudeness', severity: 'low', reason: 'r', cooldownMs: DAY });
+  assert.equal(db.strikes.add(app.id, 'u', { category: 'threat', severity: 'high', reason: 'r', cooldownMs: 30 * DAY }), 2);
+  assert.equal(db.strikes.count(app.id, 'other'), 0, 'per user');
 
-  const reloaded = new StrikeStore(file, { now: () => now });
-  assert.equal(reloaded.count('g', 'u'), 2);
+  clock.now += 2 * DAY;
+  assert.equal(db.strikes.count(app.id, 'u'), 1, 'the low one has cooled down');
+  clock.now += 29 * DAY;
+  assert.equal(db.strikes.count(app.id, 'u'), 0, 'everything has cooled down');
 
-  now += 2 * DAY;
-  assert.equal(reloaded.count('g', 'u'), 1, 'the low one has cooled down');
-  now += 29 * DAY;
-  assert.equal(reloaded.count('g', 'u'), 0, 'everything has cooled down');
-
-  now -= 31 * DAY;
-  assert.equal(reloaded.pardon('g', 'u', 1), 1);
-  assert.equal(reloaded.count('g', 'u'), 1);
-  assert.equal(reloaded.pardon('g', 'u'), 1);
-  assert.equal(reloaded.count('g', 'u'), 0);
+  clock.now -= 31 * DAY;
+  assert.equal(db.strikes.pardon(app.id, 'u', 1), 1);
+  assert.equal(db.strikes.count(app.id, 'u'), 1);
+  assert.equal(db.strikes.pardon(app.id, 'u'), 1);
+  assert.equal(db.strikes.count(app.id, 'u'), 0);
 });
 
 function fakeMessage(content) {
   const calls = [];
-  const author = { id: 'u1', tag: 'griefer#0001', toString: () => '<@u1>',
+  const author = { id: 'u1', username: 'griefer', tag: 'griefer#0001', toString: () => '<@u1>',
     send: async () => calls.push('dm') };
   return {
     calls,
@@ -119,48 +121,65 @@ function fakeMessage(content) {
   };
 }
 
+/** The moderator decides (with a classifier that always returns `verdict`), Discord enforcement carries it out. */
+function offender(verdict) {
+  const env = setupDb();
+  const classifier = { aiAvailable: () => false, classify: async () => verdict };
+  const moderator = createModerator({ db: env.db, classifier, now: () => env.clock.now });
+  let n = 0;
+  return {
+    ...env,
+    async offend(content) {
+      const msg = fakeMessage(content);
+      const result = await moderator.moderate(env.app, { userId: 'u1', username: 'griefer', text: content, messageId: String(++n), room: 'c1' });
+      await enforce({ app: env.app, message: msg, result, log: { warn() {} } });
+      return { msg, result };
+    },
+  };
+}
+
 test('repeat subtle rudeness gets longer mutes, and resets after cooling down', async () => {
-  let now = Date.now();
-  const store = new StrikeStore(tmpFile(), { now: () => now });
-  const verdict = { violation: true, category: 'rudeness', severity: 'low', reason: 'Snarky', source: 'jev' };
-  const quiet = { warn() {} };
+  const o = offender({ violation: true, category: 'rudeness', severity: 'low', reason: 'Snarky', source: 'jev' });
   const mutes = [];
   for (let i = 0; i < 3; i++) {
-    const msg = fakeMessage('nobody asked lol');
-    await enforce({ message: msg, verdict, store, log: quiet });
+    const { msg } = await o.offend('nobody asked lol');
     assert.ok(msg.calls.includes('delete'), 'message deleted every time');
     assert.ok(msg.calls.includes('dm'), 'member told by DM every time');
     mutes.push(msg.calls.find((c) => c.startsWith('timeout:')));
-    now += 60 * MIN;
+    o.clock.now += 60 * MIN;
   }
   assert.deepEqual(mutes, [`timeout:${2 * MIN}`, `timeout:${10 * MIN}`, `timeout:${60 * MIN}`]);
 
-  now += 2 * DAY; // 48 hours later: back to the start
-  const msg = fakeMessage('nobody asked lol');
-  await enforce({ message: msg, verdict, store, log: quiet });
+  o.clock.now += 2 * DAY; // 48 hours later: back to the start
+  const { msg } = await o.offend('nobody asked lol');
   assert.ok(msg.calls.includes(`timeout:${2 * MIN}`));
 });
 
 test('a clear insult four times in a day ends in a ban', async () => {
-  const store = new StrikeStore(tmpFile());
-  const verdict = { violation: true, category: 'rudeness', severity: 'medium', reason: 'Insult', source: 'rules' };
+  const o = offender({ violation: true, category: 'rudeness', severity: 'medium', reason: 'Insult', source: 'rules' });
   const results = [];
   for (let i = 0; i < 5; i++) {
-    const msg = fakeMessage('you are an idiot');
-    const { step } = await enforce({ message: msg, verdict, store, log: { warn() {} } });
-    results.push(step.ban ? 'ban' : step.timeoutMs / MIN);
-    if (step.ban) assert.ok(msg.calls.includes('ban:u1'));
+    const { msg, result } = await o.offend('you are an idiot');
+    results.push(result.action.type === 'ban' ? 'ban' : result.action.durationMs / MIN);
+    if (result.action.type === 'ban') assert.ok(msg.calls.includes('ban:u1'));
+    o.clock.now += MIN;
   }
   assert.deepEqual(results, [10, 60, 360, 1440, 'ban']);
 });
 
 test('a severe offense goes straight to the final warning', async () => {
-  const store = new StrikeStore(tmpFile());
-  const msg = fakeMessage('kys');
-  const { step } = await enforce({ message: msg, store, log: { warn() {} },
-    verdict: { violation: true, category: 'toxicity', severity: 'high', reason: 'Self-harm', source: 'rules' } });
+  const o = offender({ violation: true, category: 'toxicity', severity: 'high', reason: 'Self-harm', source: 'rules' });
+  const { msg, result } = await o.offend('kys');
   assert.ok(msg.calls.includes(`timeout:${DAY}`));
-  assert.match(step.label, /FINAL/);
+  assert.match(result.action.label, /FINAL/);
+});
+
+test('a flood is punished once; the rest are only deleted', async () => {
+  const o = offender({ violation: true, category: 'spam', severity: 'low', reason: 'Flooding', source: 'rules' });
+  await o.offend('spam');
+  const { msg, result } = await o.offend('spam');
+  assert.equal(result.action.type, 'delete');
+  assert.deepEqual(msg.calls, ['delete'], 'no DM or mute the second time');
 });
 
 test('griefing and bullying need a pattern, not one message', async () => {
@@ -423,14 +442,13 @@ test('Jev client caps requests in flight and backs off when rate limited', async
   assert.equal(hits, 2, 'tries again after Retry-After');
 });
 
-test('server rules: stored per server, asked as their own question, acted on', () => {
-  const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'jev-mod-')), 'settings.json');
-  const settings = new GuildSettings(file);
-  const rule = settings.addRule('g1', 'No asking for or missing old Braains', 'low');
-  settings.setModLogChannel('g1', 'c1');
-  assert.deepEqual(new GuildSettings(file).rules('g1'), [rule], 'saved to disk');
-  assert.deepEqual(settings.rules('g2'), [], 'other servers are unaffected');
-  assert.equal(new GuildSettings(file).modLogChannelId('g1'), 'c1');
+test('server rules: stored per app, asked as their own question, acted on', () => {
+  const { db, app } = setupDb();
+  const other = db.apps.create({ accountId: app.accountId, name: 'Other', kind: 'discord' });
+  const rule = db.rules.add(app.id, 'No asking for or missing old Braains', 'low');
+  assert.deepEqual(db.rules.list(app.id).map((r) => [r.id, r.text, r.severity]), [[rule.id, rule.text, 'low']]);
+  assert.deepEqual(db.rules.list(other.id), [], 'other apps are unaffected');
+  assert.equal(db.apps.update(app.id, { settings: { modLogChannelId: 'c1' } }).settings.modLogChannelId, 'c1');
 
   const body = jevRequest('bring back old braains', { customRules: [rule] });
   assert.match(body.questions[`custom_${rule.id}`].instructions, /old Braains/);
@@ -447,20 +465,23 @@ test('server rules: stored per server, asked as their own question, acted on', (
   }, 0.9, [rule]);
   assert.equal(both.category, 'rudeness', 'the more severe rule wins');
 
-  assert.equal(settings.removeRule('g1', rule.id).id, rule.id);
-  assert.deepEqual(settings.rules('g1'), []);
+  assert.equal(db.rules.remove(other.id, rule.id), null, 'only from its own app');
+  assert.equal(db.rules.remove(app.id, rule.id).id, rule.id);
+  assert.deepEqual(db.rules.list(app.id), []);
 });
 
 test('old records are deleted, and a server\'s data is forgotten when the bot leaves', () => {
-  const file = tmpFile();
-  let now = Date.now();
-  const store = new StrikeStore(file, { now: () => now });
-  store.add('g', 'old', { category: 'rudeness', severity: 'low', reason: 'r', cooldownMs: DAY });
-  now += 32 * DAY;
-  store.add('g', 'new', { category: 'rudeness', severity: 'low', reason: 'r', cooldownMs: DAY });
-  const saved = JSON.parse(fs.readFileSync(file, 'utf8'));
-  assert.deepEqual(Object.keys(saved.g), ['new'], 'expired over 30 days ago: gone from disk');
+  const { db, app, clock } = setupDb();
+  db.strikes.add(app.id, 'old', { category: 'rudeness', severity: 'low', reason: 'r', cooldownMs: DAY });
+  clock.now += 32 * DAY;
+  db.strikes.add(app.id, 'new', { category: 'rudeness', severity: 'low', reason: 'r', cooldownMs: DAY });
+  db.strikes.prune();
+  const users = db.raw.prepare('SELECT DISTINCT user_id FROM strikes').all().map((r) => r.user_id);
+  assert.deepEqual(users, ['new'], 'expired over 30 days ago: deleted');
 
-  store.forgetGuild('g');
-  assert.deepEqual(JSON.parse(fs.readFileSync(file, 'utf8')), {});
+  db.events.add(app.id, { type: 'action', userId: 'new' });
+  db.strikes.forgetApp(app.id);
+  db.events.forgetApp(app.id);
+  assert.equal(db.strikes.count(app.id, 'new'), 0);
+  assert.deepEqual(db.events.list(app.id), []);
 });

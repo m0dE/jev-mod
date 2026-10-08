@@ -58,7 +58,7 @@ function customRulesText(customRules) {
 }
 
 function systemPrompt(rules) {
-  return `You are the moderation filter for a Discord community. For each message, decide whether it breaks the server rules.
+  return `You are the moderation filter for an online community's chat (a Discord server or a game's chat). For each message, decide whether it breaks the server rules.
 
 Server rules:
 ${rules}
@@ -94,7 +94,7 @@ export function createClassifier({
   // Only send the rules text to Jev when the server set its own; the questions already cover the defaults.
   const jevRules = config.rulesText || null;
 
-  const stats = { messages: 0, trivial: 0, cached: 0, gatedClean: 0, fullChecks: 0, overBudget: 0, tokens: 0 };
+  const stats = { messages: 0, trivial: 0, cached: 0, overQuota: 0, gatedClean: 0, fullChecks: 0, overBudget: 0, tokens: 0 };
 
   // Messages judged clean recently, so repeats ("anyone want to trade?") aren't sent again.
   // Keyed by server and its custom rules, so changing the rules starts fresh.
@@ -130,6 +130,14 @@ export function createClassifier({
       }
       return null;
     }
+  }
+
+  // meta.quota (optional) is the app's monthly AI allowance: take() uses one check, or
+  // returns false when it's used up and the message should get keyword rules only.
+  function takeQuota(meta) {
+    if (!meta.quota || meta.quota.take()) return true;
+    stats.overQuota++;
+    return false;
   }
 
   gate ??= jev && createGate({ ask: askJev, delayMs: config.jevBatchMs });
@@ -172,6 +180,7 @@ export function createClassifier({
       stats.cached++;
       return byRules;
     }
+    if (!takeQuota(meta)) return { ...byRules, aiSkipped: 'quota' };
     // Someone already being watched for griefing or bullying always gets the full check.
     const watched = (meta.history ?? []).some((h) => PATTERN_KINDS[h.flagged]);
     if (!watched) {
@@ -210,7 +219,7 @@ export function createClassifier({
       : { ...verdict, hint: kind };
     if (!history.some((h) => h.flagged === kind)) return notYet;
 
-    const answers = jev && budget.ok() && await askJev(jevPatternRequest(kind, content, meta));
+    const answers = jev && budget.ok() && takeQuota(meta) && await askJev(jevPatternRequest(kind, content, meta));
     if (answers) return (answers.pattern?.noul ?? 0) >= config.jevPatternThreshold ? confirmed : notYet;
     return history.filter((h) => h.flagged === kind).length >= PATTERN_FALLBACK_COUNT ? confirmed : notYet;
   }
@@ -221,6 +230,7 @@ export function createClassifier({
     if (!content?.trim()) return byRules;
     if (jev) return classifyWithJev(content, meta, byRules);
     if (!anthropic) return byRules;
+    if (!takeQuota(meta)) return { ...byRules, aiSkipped: 'quota' };
 
     try {
       return (await classifyWithAI(content, meta)) ?? byRules;
@@ -250,8 +260,9 @@ export function createClassifier({
     },
 
     /**
-     * meta: { guildId, customRules, authorName, replyTo, recent: channel context,
-     * history: the member's own recent messages (see history.js), mentionCount }
+     * meta: { guildId: the app id (scopes the clean-message cache), customRules, authorName,
+     * replyTo, recent: channel context, history: the member's own recent messages
+     * (see history.js), mentionCount, quota: { take() } }
      */
     async classify(content, meta = {}) {
       stats.messages++;

@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Discord quickstart: Jef Bot</title>
+  <meta name="description" content="Add Jef Bot to your Discord server: sign in, create a Discord app, add the bot, set role order and a mod log channel, and use the slash commands.">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <header class="top">
+    <div class="wrap">
+      <a class="brand" href="/"><img src="/favicon.svg" alt="" width="28" height="28">Jef Bot</a>
+      <nav aria-label="Main">
+        <a href="/docs/" aria-current="page">Docs</a>
+        <a href="/pricing.html">Pricing</a>
+        <a class="hide-sm" href="/docs/api.html">API</a>
+        <a class="hide-sm" href="/app/login">Sign in</a>
+        <a class="button" href="/app/login">Get started</a>
+      </nav>
+    </div>
+  </header>
+  <div class="wrap docs-layout">
+    <nav class="sidebar" aria-label="Documentation">
+      <h2>Getting started</h2>
+      <ul>
+        <li><a href="/docs/">Overview</a></li>
+        <li><a href="/docs/quickstart-game.html">Game chat quickstart</a></li>
+        <li><a href="/docs/quickstart-discord.html" aria-current="page">Discord quickstart</a></li>
+        <li><a href="/docs/agents.html">Setup by AI agents</a></li>
+      </ul>
+      <h2>Reference</h2>
+      <ul>
+        <li><a href="/docs/api.html">API reference</a></li>
+        <li><a href="/docs/webhooks.html">Webhooks</a></li>
+        <li><a href="/docs/rules.html">Rules and punishments</a></li>
+        <li><a href="/openapi.json">OpenAPI spec</a></li>
+        <li><a href="/llms.txt">llms.txt</a></li>
+      </ul>
+      <h2>Account</h2>
+      <ul>
+        <li><a href="/pricing.html">Pricing</a></li>
+        <li><a href="/app">Dashboard</a></li>
+      </ul>
+    </nav>
+    <main id="main" class="content">
+      <h1>Discord quickstart</h1>
+      <p class="lead">Add Jef Bot to your Discord server in a couple of minutes. No code needed.</p>
+
+      <div class="toc">
+        <strong>On this page</strong>
+        <ul>
+          <li><a href="#create">1. Sign in and create a Discord app</a></li>
+          <li><a href="#add">2. Add Jef Bot to your server</a></li>
+          <li><a href="#roles">3. Put Jef Bot's role above your members</a></li>
+          <li><a href="#modlog">4. Pick a mod log channel</a></li>
+          <li><a href="#what">What happens when someone breaks the rules</a></li>
+          <li><a href="#commands">Slash commands</a></li>
+          <li><a href="#settings">Settings</a></li>
+          <li><a href="#unlink">Unlinking and removing</a></li>
+        </ul>
+      </div>
+
+      <h2 id="create">1. Sign in and create a Discord app</h2>
+      <p><a href="/app/login">Sign in with Google</a>, then create a new app of kind <strong>Discord</strong>. Each Discord server needs its own app (the Free plan has one app; Starter 3; Pro 15).</p>
+      <p>Creating it gives you two ways to connect your server, both valid for <strong>1 hour</strong>:</p>
+      <ul>
+        <li>an <strong>Add to server</strong> link, and</li>
+        <li>a <strong>link code</strong>, used as <code>/jef link code:A1B2C3D4E5F6</code>.</li>
+      </ul>
+      <p>If they expire, get new ones from the app's page (or <code>POST /v1/apps/{appId}/discord/link</code>). Getting a new pair cancels the old one.</p>
+
+      <h2 id="add">2. Add Jef Bot to your server</h2>
+      <p>Open the <strong>Add to server</strong> link, pick your server and approve. You need the <em>Manage Server</em> permission on that server.</p>
+      <ul>
+        <li>Usually Discord sends you straight back to the dashboard and the server is <strong>linked automatically</strong>. For that, you must be <strong>signed in to the Jef Bot dashboard, in the same browser, as the app's owner</strong>. If you aren't, linking stops with <code>reason=signed_out</code> or <code>reason=not_owner</code>; sign in and try again (the link still works), or use <code>/jef link</code>.</li>
+        <li>If it isn't (the bot was already in your server, or automatic linking isn't available), run this in any channel of the server, with your code:
+          <pre data-lang="Discord"><code>/jef link code:A1B2C3D4E5F6</code></pre>
+          <code>/jef link</code> needs the <em>Manage Server</em> permission. The reply is only visible to you.</li>
+      </ul>
+      <p>Run <code>/jef status</code> to check: it shows which app the server is linked to, the plan, and this month's AI checks and custom rules.</p>
+      <div class="note"><p>Jef Bot only moderates servers that are linked to an app. Until then it does nothing, and posts one reminder in the server's system channel about how to link it.</p></div>
+      <p>The bot asks for these permissions: <em>View Channels, Send Messages, Manage Messages, Embed Links, Read Message History, Moderate Members</em> (for timeouts) and <em>Ban Members</em>. If one is missing, that step is skipped and the others still happen (for example, no timeouts without <em>Moderate Members</em>); failed mutes and bans are noted in the mod log.</p>
+
+      <h2 id="roles">3. Put Jef Bot's role above your members</h2>
+      <p>In <strong>Server Settings → Roles</strong>, drag the <strong>Jef Bot</strong> role above the roles of the members it should moderate. Discord doesn't let a bot time out or ban anyone whose highest role is above its own; the mod log then says "cannot mute this member".</p>
+
+      <h2 id="modlog">4. Pick a mod log channel</h2>
+      <p>Run <code>/modlog channel:#staff-log</code> (needs <em>Manage Server</em>), or set it in the dashboard. Make sure Jef Bot can see and post in that channel. Every action, every "watching" note and every rule change is posted there, so your team can review what Jef Bot did.</p>
+      <p>That's it. Optionally, <a href="#commands">add your own rules</a> with <code>/rule add</code>.</p>
+
+      <h2 id="what">What happens when someone breaks the rules</h2>
+      <ol>
+        <li>The message is deleted.</li>
+        <li>The member gets a DM with the punishment and the reason.</li>
+        <li>They're timed out for the punishment's length, or banned at the top of the ladder (a ban also deletes their messages from the last hour).</li>
+        <li>A short notice appears in the channel ("your message was removed: …") and deletes itself after 15 seconds.</li>
+        <li>The details go to your mod log: who, where, category and severity, active offenses, whether the DM arrived, and the message text.</li>
+      </ol>
+      <p>Earlier copies of a spam wave and the rest of a scam run are deleted too. Edited messages are checked again, so nobody can post something clean and edit it afterwards.</p>
+      <p><strong>Never moderated:</strong> bots, the server owner, anyone with the <em>Manage Messages</em> permission, and any roles and channels you exempt in <a href="#settings">settings</a>.</p>
+      <p>See <a href="/docs/rules.html">rules and punishments</a> for what's moderated and the full ladder.</p>
+
+      <h2 id="commands">Slash commands</h2>
+      <p>Replies are only visible to the person who ran the command. Server admins can change who may use each command in <strong>Server Settings → Integrations → Jef Bot</strong>.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th scope="col">Command</th><th scope="col">What it does</th><th scope="col">Default permission</th></tr></thead>
+          <tbody>
+            <tr><td><code>/strikes user</code></td><td>A member's active offenses, when each expires, and what their next offense would get</td><td>Moderate Members</td></tr>
+            <tr><td><code>/warn user reason [severity]</code></td><td>Punish a member by hand, on the same ladder. Severity defaults to medium. If the result would be a ban, you also need <em>Ban Members</em>.</td><td>Moderate Members</td></tr>
+            <tr><td><code>/pardon user [count]</code></td><td>Remove a member's most recent offenses (all of them if no count)</td><td>Moderate Members</td></tr>
+            <tr><td><code>/rule add text [severity]</code></td><td>Add a rule of your own, in plain words (up to 300 characters). Severity defaults to low.</td><td>Manage Server</td></tr>
+            <tr><td><code>/rule list</code>, <code>/rule remove id</code></td><td>Show or remove your rules</td><td>Manage Server</td></tr>
+            <tr><td><code>/modlog channel</code></td><td>Choose where actions are logged</td><td>Manage Server</td></tr>
+            <tr><td><code>/jef link code</code></td><td>Link this server to a Jef Bot app</td><td>Manage Server</td></tr>
+            <tr><td><code>/jef status</code></td><td>Which app this server is linked to, its plan and this month's usage</td><td>Manage Server</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Custom rules need the AI, and each plan has a limit per app (3, 15 or 50). Rules, strikes and history are shared with the dashboard and the API: a <code>/warn</code> shows up in the app's history, and a rule added in the dashboard applies in Discord.</p>
+
+      <h2 id="settings">Settings</h2>
+      <p>Each Discord app has three settings, in the dashboard or through <code>PATCH /v1/apps/{appId}</code>:</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th scope="col">Setting</th><th scope="col">What</th></tr></thead>
+          <tbody>
+            <tr><td><code>modLogChannelId</code></td><td>The mod log channel ID (same as <code>/modlog</code>).</td></tr>
+            <tr><td><code>ignoredChannelIds</code></td><td>Channel IDs Jef Bot never moderates (up to 100).</td></tr>
+            <tr><td><code>exemptRoleIds</code></td><td>Role IDs whose members are never moderated (up to 100).</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <pre data-lang="curl"><code>curl -s -X PATCH https://jef.example.com/v1/apps/$APP_ID \
+  -H "Authorization: Bearer $JEF_ACCOUNT_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"settings": {"modLogChannelId": "1234567890123456789", "exemptRoleIds": ["2345678901234567890"]}}'</code></pre>
+      <p>To copy IDs in Discord, turn on <strong>User Settings → Advanced → Developer Mode</strong>, then right-click a channel or role and choose <em>Copy ID</em>. Setting a value to <code>null</code> clears it.</p>
+      <p>On Starter and Pro you can also send every action to your own systems with a <a href="/docs/webhooks.html">webhook</a>.</p>
+
+      <h2 id="unlink">Unlinking and removing</h2>
+      <ul>
+        <li><strong>Move the server to another app</strong> on the same account: run <code>/jef link</code> with the other app's code. A server already linked to an app on a different account must be unlinked by that account first.</li>
+        <li><strong>Unlink</strong> from the dashboard (or <code>DELETE /v1/apps/{appId}/discord</code>): the bot stays in the server but stops moderating.</li>
+        <li><strong>Kick Jef Bot</strong> from the server: the app is unlinked and the server's strikes and history are deleted. The app, its rules and settings stay, so you can link it again. If the bot was removed while Jef Bot was offline, this happens when it next starts.</li>
+        <li><strong>Over your plan's app count</strong> (after a downgrade): only your oldest apps up to the limit are moderated. A server linked to a newer app is ignored until you delete an app or upgrade.</li>
+        <li><strong>Delete the app</strong>: its rules, strikes, history and keys are deleted.</li>
+      </ul>
+
+      <nav class="pager" aria-label="More pages">
+        <a href="/docs/quickstart-game.html">← Game chat quickstart</a>
+        <a href="/docs/agents.html">Setup by AI agents →</a>
+      </nav>
+    </main>
+  </div>
+  <footer>
+    <div class="wrap">
+      <span>Jef Bot · AI moderation by Jev</span>
+      <span class="spacer"></span>
+      <a href="/docs/">Docs</a>
+      <a href="/pricing.html">Pricing</a>
+      <a href="/privacy.html">Privacy</a>
+      <a href="/terms.html">Terms</a>
+      <a href="https://github.com/m0dE/jev-mod">GitHub</a>
+      <a href="https://github.com/m0dE/jev-mod/issues">Contact</a>
+    </div>
+  </footer>
+  <script src="/docs/docs.js" defer></script>
+</body>
+</html>

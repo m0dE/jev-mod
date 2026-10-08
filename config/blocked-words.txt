@@ -1,4 +1,5 @@
 # One word or phrase per line. Any message containing one is removed as a
-# high-severity violation (counts as SEVERE_STRIKES strikes).
+# high-severity violation (a 24 hour mute and final warning, or a ban if they already have offenses).
+# This list applies to every app on this Jef Bot server.
 # Matching is case-insensitive, whole-word, and sees through l33t-speak (h4te -> hate).
 # Add slurs and anything else your server never wants to see.

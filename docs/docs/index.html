@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Jef Bot documentation</title>
+  <meta name="description" content="How Jef Bot works: accounts, apps, API keys, strikes, plans, and which setup guide to follow for Discord, game chat or AI agents.">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <header class="top">
+    <div class="wrap">
+      <a class="brand" href="/"><img src="/favicon.svg" alt="" width="28" height="28">Jef Bot</a>
+      <nav aria-label="Main">
+        <a href="/docs/" aria-current="page">Docs</a>
+        <a href="/pricing.html">Pricing</a>
+        <a class="hide-sm" href="/docs/api.html">API</a>
+        <a class="hide-sm" href="/app/login">Sign in</a>
+        <a class="button" href="/app/login">Get started</a>
+      </nav>
+    </div>
+  </header>
+  <div class="wrap docs-layout">
+    <nav class="sidebar" aria-label="Documentation">
+      <h2>Getting started</h2>
+      <ul>
+        <li><a href="/docs/" aria-current="page">Overview</a></li>
+        <li><a href="/docs/quickstart-game.html">Game chat quickstart</a></li>
+        <li><a href="/docs/quickstart-discord.html">Discord quickstart</a></li>
+        <li><a href="/docs/agents.html">Setup by AI agents</a></li>
+      </ul>
+      <h2>Reference</h2>
+      <ul>
+        <li><a href="/docs/api.html">API reference</a></li>
+        <li><a href="/docs/webhooks.html">Webhooks</a></li>
+        <li><a href="/docs/rules.html">Rules and punishments</a></li>
+        <li><a href="/openapi.json">OpenAPI spec</a></li>
+        <li><a href="/llms.txt">llms.txt</a></li>
+      </ul>
+      <h2>Account</h2>
+      <ul>
+        <li><a href="/pricing.html">Pricing</a></li>
+        <li><a href="/app">Dashboard</a></li>
+      </ul>
+    </nav>
+    <main id="main" class="content">
+      <h1>Jef Bot documentation</h1>
+      <p class="lead">Jef Bot is hosted AI chat moderation for Discord servers, game chat and any app that can make an HTTP request. Jev, TypeSafe's decision model, does the judging; Jef Bot keeps the rules, strikes, punishments and history.</p>
+
+      <div class="grid two">
+        <div class="card"><h3><a href="/docs/quickstart-game.html">Game chat quickstart</a></h3><p>Moderate your game's chat from your game server with one API call per message.</p></div>
+        <div class="card"><h3><a href="/docs/quickstart-discord.html">Discord quickstart</a></h3><p>Add the Jef Bot bot to your server and link it to your account.</p></div>
+        <div class="card"><h3><a href="/docs/agents.html">Setup by AI agents</a></h3><p>Give a coding agent an account key and let it set everything up over the API.</p></div>
+        <div class="card"><h3><a href="/docs/api.html">API reference</a></h3><p>Every <code>/v1</code> endpoint, its fields and errors. Also as <a href="/openapi.json">OpenAPI 3.1</a>.</p></div>
+      </div>
+
+      <h2 id="concepts">Concepts</h2>
+
+      <h3 id="account">Account</h3>
+      <p>You sign in with Google at <a href="/app/login">/app/login</a>; that creates your account. An account has a <strong>plan</strong> (Free, Starter or Pro, see <a href="/pricing.html">pricing</a>) that sets its limits, and counts its usage per calendar month (UTC): messages moderated and AI checks used, across all its apps.</p>
+
+      <h3 id="apps">Apps</h3>
+      <p>An <strong>app</strong> is one community being moderated. Each app has its own custom rules, strikes, history and settings. There are two kinds:</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th scope="col">Kind</th><th scope="col">For</th><th scope="col">How messages get checked</th></tr></thead>
+          <tbody>
+            <tr><td><code>discord</code></td><td>One Discord server</td><td>The Jef Bot bot reads the server's messages and carries out the punishment itself: deletes the message, DMs the member, times them out or bans them, and posts to your mod log.</td></tr>
+            <tr><td><code>api</code></td><td>A game, a website, any chat</td><td>Your server sends each message to <code>POST /v1/moderate</code> and gets a verdict back. Your code removes the message and mutes or bans the player.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>A Discord server can be linked to only one app at a time. One app can't cover several Discord servers; create one app per server.</p>
+      <p>If an account has more apps than its plan allows (after a downgrade), only the oldest ones up to the limit are moderated; the others show <code>"inPlan": false</code> and are paused until you delete some or upgrade.</p>
+
+      <h3 id="keys">API keys</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th scope="col">Key</th><th scope="col">Looks like</th><th scope="col">Can</th><th scope="col">Use it in</th></tr></thead>
+          <tbody>
+            <tr><td>Account key</td><td><code>jef_acct_…</code></td><td>Everything you can do in the dashboard: create and delete apps, keys, rules, webhooks, link Discord servers, see usage, get a Stripe Checkout or billing portal link. Also moderate and manage strikes for any of your apps.</td><td>Setup scripts, AI agents, your backend tools. Create one at <a href="/app/account">/app/account</a>.</td></tr>
+            <tr><td>App key</td><td><code>jef_app_…</code></td><td>Only for its own app: moderate messages, look up and warn or pardon users, read the app, its rules and history. Can't change settings.</td><td>Your game server. API apps only.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Send a key as <code>Authorization: Bearer &lt;key&gt;</code>. The full key is shown only once, when it's created; Jef Bot keeps only a hash. Never put a key in a game client, a browser page or a mobile app: anyone could extract it.</p>
+
+      <h3 id="strikes">Strikes and the punishment ladder</h3>
+      <p>Each offense is a <strong>strike</strong> against the user in that app. Strikes count for 24 hours (30 days for high severity). The more active strikes someone has, the further up the ladder their next punishment is: <strong>2 min → 10 min → 1 h → 6 h → 24 h with a final warning → ban</strong>. Low-severity offenses start at the bottom, medium at 10 minutes, high at the 24 hour final warning. See <a href="/docs/rules.html">rules and punishments</a>.</p>
+
+      <h3 id="events">History</h3>
+      <p>Every automatic action, manual warning, pardon and "watching" note is an <strong>event</strong> in the app's history, kept for your plan's history period (7, 30 or 90 days). Clean messages are never stored.</p>
+
+      <h3 id="ai-checks">AI checks</h3>
+      <p>Spam, scam and keyword checks are free and unlimited. A message that gets past them (and isn't trivial, like "gg") is sent to Jev, which costs one <strong>AI check</strong> from your monthly allowance. At most a tenth of the monthly allowance can be used in one UTC day, so one busy day can't use up the month. When either runs out, your apps keep running on the free checks until it resets.</p>
+
+      <h2 id="choose">Which guide should I follow?</h2>
+      <ul>
+        <li><strong>You run a Discord server:</strong> <a href="/docs/quickstart-discord.html">Discord quickstart</a>. No code needed.</li>
+        <li><strong>You run a game or an app with its own chat:</strong> <a href="/docs/quickstart-game.html">Game chat quickstart</a>. You'll add one HTTP call to your game server.</li>
+        <li><strong>You want an AI coding agent (or a script) to set it up:</strong> <a href="/docs/agents.html">Setup by AI agents</a>. A person creates one account key; the agent does the rest.</li>
+        <li><strong>You want to react to actions in your own systems</strong> (a staff Slack, your own database): <a href="/docs/webhooks.html">Webhooks</a> (Starter and Pro).</li>
+      </ul>
+
+      <h2 id="machine-readable">For tools and agents</h2>
+      <ul>
+        <li><a href="/openapi.json"><code>/openapi.json</code></a>: OpenAPI 3.1 description of the whole <code>/v1</code> API.</li>
+        <li><a href="/llms.txt"><code>/llms.txt</code></a>: an index of these docs for language models, and <a href="/llms-full.txt"><code>/llms-full.txt</code></a>: the agent guide and API reference in one plain-text file.</li>
+      </ul>
+
+      <nav class="pager" aria-label="Next page">
+        <span></span>
+        <a href="/docs/quickstart-game.html">Game chat quickstart →</a>
+      </nav>
+    </main>
+  </div>
+  <footer>
+    <div class="wrap">
+      <span>Jef Bot · AI moderation by Jev</span>
+      <span class="spacer"></span>
+      <a href="/docs/">Docs</a>
+      <a href="/pricing.html">Pricing</a>
+      <a href="/privacy.html">Privacy</a>
+      <a href="/terms.html">Terms</a>
+      <a href="https://github.com/m0dE/jev-mod">GitHub</a>
+      <a href="https://github.com/m0dE/jev-mod/issues">Contact</a>
+    </div>
+  </footer>
+  <script src="/docs/docs.js" defer></script>
+</body>
+</html>

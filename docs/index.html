@@ -3,126 +3,211 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>JEV Mod: AI moderation for Discord</title>
-  <meta name="description" content="A Discord moderation bot that removes rude, toxic and scam messages, catches griefing and bullying patterns, and mutes for longer each time someone reoffends.">
-  <link rel="stylesheet" href="style.css">
+  <title>Jef Bot: AI chat moderation for Discord and game chat</title>
+  <meta name="description" content="Jef Bot removes rude, toxic, spam and scam messages from Discord servers and game chat, spots griefing and bullying patterns, and escalates mutes up to a ban. Hosted, with an HTTP API.">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/style.css">
 </head>
 <body>
+  <a class="skip" href="#main">Skip to content</a>
   <header class="top">
     <div class="wrap">
-      <a class="brand" href="./">JEV Mod</a>
-      <nav>
-        <a href="#features">Features</a>
-        <a href="#setup">Setup</a>
-        <a href="#commands">Commands</a>
-        <a href="privacy.html">Privacy</a>
+      <a class="brand" href="/"><img src="/favicon.svg" alt="" width="28" height="28">Jef Bot</a>
+      <nav aria-label="Main">
+        <a href="/docs/">Docs</a>
+        <a href="/pricing.html">Pricing</a>
+        <a class="hide-sm" href="/docs/api.html">API</a>
+        <a class="hide-sm" href="/app/login">Sign in</a>
+        <a class="button" href="/app/login">Get started</a>
       </nav>
     </div>
   </header>
-
-  <div class="hero">
-    <div class="wrap">
-      <h1>Moderation that understands tone</h1>
-      <p>JEV Mod removes rude, toxic and scam messages, spots griefing and bullying across a conversation, and mutes for longer each time someone reoffends. Friendly banter and trash talk are left alone.</p>
-      <a class="button" href="https://discord.com/oauth2/authorize?client_id=1557216496718192720&amp;scope=bot%20applications.commands&amp;permissions=1099511720964">Add to Discord</a>
-      <a class="button secondary" href="https://github.com/m0dE/jev-mod">View on GitHub</a>
-    </div>
-  </div>
-
-  <section id="features">
-    <div class="wrap">
-      <h2>What it catches</h2>
-      <p class="lead">Every message is checked as it's posted, edits included. Clear cases are handled instantly; anything subtle is judged by Jev, an AI model that reads tone and context, in any language.</p>
-      <div class="grid">
-        <div class="card"><h3>Rudeness and insults</h3><p>From snarky put-downs to outright name-calling, judged by meaning rather than a word list.</p></div>
-        <div class="card"><h3>Bullying</h3><p>Picking on the same person over several messages. One jab between friends isn't enough.</p></div>
-        <div class="card"><h3>Griefing</h3><p>Planning or bragging about wrecking other players' games, raids and spam-pinging.</p></div>
-        <div class="card"><h3>Scams and phishing</h3><p>Fake Nitro and Steam gifts, look-alike links, "I accidentally reported you", requests for logins, account trading. The rest of a scam run is cleaned up too.</p></div>
-        <div class="card"><h3>Spam</h3><p>Flooding chat, posting the same message again and again across channels, and advertising other servers.</p></div>
-        <div class="card"><h3>Threats and hate</h3><p>Threats, slurs and telling people to harm themselves go straight to a 24 hour mute.</p></div>
+  <main id="main">
+    <div class="hero">
+      <div class="wrap">
+        <span class="eyebrow">Discord servers · game chat · any app over HTTP</span>
+        <h1>Chat moderation that understands tone</h1>
+        <p>Jef Bot removes rude, toxic, spam and scam messages, spots griefing and bullying across a conversation, and mutes for longer each time someone reoffends. Friendly banter and trash talk are left alone.</p>
+        <div class="buttons">
+          <a class="button" href="/app/login">Get started free</a>
+          <a class="button secondary" href="/docs/">Read the docs</a>
+        </div>
       </div>
     </div>
-  </section>
 
-  <section id="punishments">
-    <div class="wrap">
-      <h2>Fair, escalating punishments</h2>
-      <p class="lead">The message is deleted, the member gets a DM explaining why, and they're muted. How long depends on how serious it was and how many recent offenses they have.</p>
-      <div class="ladder">
-        <span class="step s0">2 min</span><span class="arrow">→</span>
-        <span class="step s1">10 min</span><span class="arrow">→</span>
-        <span class="step s2">1 hour</span><span class="arrow">→</span>
-        <span class="step s3">6 hours</span><span class="arrow">→</span>
-        <span class="step s4">24 hours, final warning</span><span class="arrow">→</span>
-        <span class="step s5">Ban</span>
+    <section id="where">
+      <div class="wrap">
+        <h2>One moderator, wherever your players talk</h2>
+        <p class="lead">Sign in with Google, create an app for each community, and Jef Bot keeps the same rules, strikes and history for it.</p>
+        <div class="grid two">
+          <div class="card">
+            <h3>Discord servers</h3>
+            <p>Add Jef Bot to your server from the dashboard. It checks every new and edited message, deletes rule-breakers, DMs the member why, times them out, and posts every action to your mod log channel.</p>
+            <p><a href="/docs/quickstart-discord.html">Discord quickstart →</a></p>
+          </div>
+          <div class="card">
+            <h3>Game chat and any app</h3>
+            <p>Your game server sends each chat message to <code>POST /v1/moderate</code> and gets back a verdict: allow it, or delete it and mute or ban the player for a set time, with a message to show them.</p>
+            <p><a href="/docs/quickstart-game.html">Game chat quickstart →</a></p>
+          </div>
+          <div class="card">
+            <h3>Set up by your AI agent</h3>
+            <p>Create an account key and hand it to your coding agent. It can create the app, add your rules, set a webhook and get the game's API key in a few API calls, no clicking required.</p>
+            <p><a href="/docs/agents.html">Agent setup guide →</a></p>
+          </div>
+          <div class="card">
+            <h3>Webhooks and history</h3>
+            <p>Every action and "watching" note is kept in your app's history for your plan's retention period. Paid plans can also get each action as a signed webhook.</p>
+            <p><a href="/docs/webhooks.html">Webhooks →</a></p>
+          </div>
+        </div>
       </div>
-      <table>
-        <tr><th>Severity</th><th>For example</th><th>First offense</th></tr>
-        <tr><td>Subtle</td><td>Snarky or dismissive remarks, grumbling about the server, flooding chat, advertising</td><td>2 minute mute</td></tr>
-        <tr><td>Clear</td><td>Insults, name-calling, griefing, bullying, repeated spam, likely scams</td><td>10 minute mute</td></tr>
-        <tr><td>Severe</td><td>Threats, slurs, "kys", scams and phishing links</td><td>24 hour mute and final warning</td></tr>
-      </table>
-      <p>Each repeat moves one step up the ladder. Offenses cool down: after 24 hours without trouble a member starts again at the bottom (severe offenses count for 30 days). Staff and the server owner are never moderated.</p>
-    </div>
-  </section>
+    </section>
 
-  <section id="rules">
-    <div class="wrap">
-      <h2>Your server, your rules</h2>
-      <p class="lead">On top of the built-in rules, each server can add up to 15 of its own, in plain words. The AI judges what a message means, so it catches rephrasings without flagging innocent mentions.</p>
-      <div class="example">
-        <div><code>/rule add text:No asking for old Braains, or talking about how you miss old Braains</code></div>
-        <div class="msg"><span class="tag act">REMOVED</span>i miss the old braains</div>
-        <div class="msg"><span class="tag act">REMOVED</span>can the devs add an option to play old braains?</div>
-        <div class="msg"><span class="tag ok">FINE</span>what is the oldest map in braains?</div>
-        <div class="msg"><span class="tag ok">FINE</span>I've been playing braains since 2019</div>
+    <section id="catches">
+      <div class="wrap">
+        <h2>What it catches</h2>
+        <p class="lead">Clear cases are handled instantly by built-in checks. Anything subtle is judged by Jev, TypeSafe's decision model, which reads tone and the conversation around a message, in any language.</p>
+        <div class="grid">
+          <div class="card"><h3>Rudeness and insults</h3><p>From snarky put-downs to outright name-calling, judged by meaning rather than a word list.</p></div>
+          <div class="card"><h3>Bullying</h3><p>Picking on the same person over several messages. One jab between friends isn't enough.</p></div>
+          <div class="card"><h3>Griefing</h3><p>Planning or bragging about wrecking other players' games, raids and mass-mentions.</p></div>
+          <div class="card"><h3>Scams and phishing</h3><p>Fake Nitro and Steam gifts, look-alike links, "I accidentally reported you", requests for logins, account trading. The rest of a scam run is cleaned up too.</p></div>
+          <div class="card"><h3>Spam</h3><p>Flooding chat and posting the same message again and again; the earlier copies are removed as well. Advertising counts too.</p></div>
+          <div class="card"><h3>Threats and hate</h3><p>Threats, slurs and telling people to harm themselves go straight to a 24 hour mute and a final warning.</p></div>
+        </div>
       </div>
-    </div>
-  </section>
+    </section>
 
-  <section id="setup">
-    <div class="wrap">
-      <h2>Setup in two minutes</h2>
-      <ol class="steps">
-        <li><a href="https://discord.com/oauth2/authorize?client_id=1557216496718192720&amp;scope=bot%20applications.commands&amp;permissions=1099511720964">Add JEV Mod to your server</a>.</li>
-        <li>In <strong>Server Settings → Roles</strong>, drag the JEV Mod role above your member roles. Discord won't let it mute anyone whose role is higher.</li>
-        <li>Run <code>/modlog</code> and pick a staff-only channel, so your team can see every action. Give JEV Mod access to that channel.</li>
-        <li>Optionally, add your server's own rules with <code>/rule add</code>.</li>
-      </ol>
-    </div>
-  </section>
-
-  <section id="commands">
-    <div class="wrap">
-      <h2>Commands</h2>
-      <table>
-        <tr><th>Command</th><th>What it does</th><th>Who can use it</th></tr>
-        <tr><td><code>/strikes user</code></td><td>A member's active offenses, when each expires, and what their next offense would get</td><td>Moderate Members</td></tr>
-        <tr><td><code>/warn user reason [severity]</code></td><td>Punish a member manually, on the same ladder</td><td>Moderate Members</td></tr>
-        <tr><td><code>/pardon user [count]</code></td><td>Remove a member's most recent offenses, or all of them</td><td>Moderate Members</td></tr>
-        <tr><td><code>/rule add | list | remove</code></td><td>Manage your server's own rules</td><td>Manage Server</td></tr>
-        <tr><td><code>/modlog channel</code></td><td>Choose where actions are logged</td><td>Manage Server</td></tr>
-      </table>
-      <p>Command replies are only visible to the person who ran them.</p>
-    </div>
-  </section>
-
-  <section id="faq">
-    <div class="wrap">
-      <h2>Questions</h2>
-      <div class="grid">
-        <div class="card"><h3>Does it work in other languages?</h3><p>Yes. Messages are judged by meaning, so insults and scams are caught in any language your members use.</p></div>
-        <div class="card"><h3>Will it punish friendly banter?</h3><p>It's tuned to leave jokes between friends, gaming trash talk and venting alone, and only acts when it's confident.</p></div>
-        <div class="card"><h3>What if it gets one wrong?</h3><p>Staff can see every action in the mod log and undo it with <code>/pardon</code>. Discord timeouts can also be lifted by hand.</p></div>
-        <div class="card"><h3>What happens to our messages?</h3><p>Messages are checked and not kept, apart from short excerpts in offense records. See the <a href="privacy.html">privacy policy</a>.</p></div>
+    <section id="how">
+      <div class="wrap">
+        <h2>How it decides</h2>
+        <p class="lead">Each message goes through cheap checks first, so the AI only sees the ones that need judgement.</p>
+        <div class="flow">
+          <div class="card"><h3>Spam and keyword checks</h3><p>Flooding, repeated messages, scam patterns, threats, obvious insults and mass-mentions are caught instantly, l33t-speak included. Free and unlimited on every plan.</p></div>
+          <div class="card"><h3>Skip the obvious</h3><p>Emoji, "gg", "lol", bot commands and text judged clean in the last hour don't need the AI.</p></div>
+          <div class="card"><h3>Jev judges the rest</h3><p>Jev reads the message, what it replies to and the last few messages in the room, and checks it against the built-in rules and your own. It only acts when it's confident.</p></div>
+          <div class="card"><h3>Patterns, not one-offs</h3><p>A message that looks like griefing or bullying is only noted for staff. Jef Bot acts when the person's recent messages show a real pattern.</p></div>
+        </div>
       </div>
-    </div>
-  </section>
+    </section>
 
+    <section id="punishments">
+      <div class="wrap">
+        <h2>Fair, escalating punishments</h2>
+        <p class="lead">The message is removed and the sender muted. How long depends on how serious it was and how many recent offenses they have.</p>
+        <div class="ladder" aria-label="Punishment ladder">
+          <span class="step s0">2 min</span><span class="arrow" aria-hidden="true">→</span>
+          <span class="step s1">10 min</span><span class="arrow" aria-hidden="true">→</span>
+          <span class="step s2">1 hour</span><span class="arrow" aria-hidden="true">→</span>
+          <span class="step s3">6 hours</span><span class="arrow" aria-hidden="true">→</span>
+          <span class="step s4">24 hours, final warning</span><span class="arrow" aria-hidden="true">→</span>
+          <span class="step s5">Ban</span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th scope="col">Severity</th><th scope="col">For example</th><th scope="col">First offense</th></tr></thead>
+            <tbody>
+              <tr><td>Low</td><td>Snarky or dismissive remarks, grumbling about the community, flooding chat, advertising</td><td>2 minute mute</td></tr>
+              <tr><td>Medium</td><td>Insults, name-calling, griefing, bullying, repeated spam, likely scams</td><td>10 minute mute</td></tr>
+              <tr><td>High</td><td>Threats, slurs, "kys", scams and phishing links</td><td>24 hour mute and final warning</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>Each repeat moves one step up the ladder. Offenses cool down: after 24 hours without trouble a player starts again at the bottom (high-severity offenses count for 30 days). <a href="/docs/rules.html">How the rules work →</a></p>
+      </div>
+    </section>
+
+    <section id="rules">
+      <div class="wrap">
+        <h2>Your community, your rules</h2>
+        <p class="lead">Add rules of your own in plain words, each with a severity. Jev judges what a message means, so it catches rephrasings without flagging innocent mentions.</p>
+        <div class="example">
+          <div><strong>Rule:</strong> No asking for old Braains, or talking about how you miss old Braains <span class="badge">low</span></div>
+          <div class="msg"><span class="tag act">REMOVED</span>i miss the old braains</div>
+          <div class="msg"><span class="tag act">REMOVED</span>can the devs add an option to play old braains?</div>
+          <div class="msg"><span class="tag ok">FINE</span>what is the oldest map in braains?</div>
+          <div class="msg"><span class="tag ok">FINE</span>I've been playing braains since 2019</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="pricing">
+      <div class="wrap">
+        <h2>Simple pricing</h2>
+        <p class="lead">Spam, scam and keyword checks are free and unlimited on every plan. Plans differ in how many messages a month the AI may judge, how many apps you can run and how long history is kept.</p>
+        <div class="plans">
+          <div class="plan">
+            <h3>Free</h3>
+            <div class="price">$0</div>
+            <ul>
+              <li>1 app</li>
+              <li>2,000 AI checks / month</li>
+              <li>3 custom rules per app</li>
+              <li>7 days of history</li>
+            </ul>
+            <a class="button secondary" href="/app/login">Start free</a>
+          </div>
+          <div class="plan featured">
+            <h3>Starter</h3>
+            <div class="price">$5 <small>/ month</small></div>
+            <ul>
+              <li>3 apps</li>
+              <li>30,000 AI checks / month</li>
+              <li>15 custom rules per app</li>
+              <li>30 days of history, webhooks</li>
+            </ul>
+            <a class="button" href="/app/login">Choose Starter</a>
+          </div>
+          <div class="plan">
+            <h3>Pro</h3>
+            <div class="price">$20 <small>/ month</small></div>
+            <ul>
+              <li>15 apps</li>
+              <li>200,000 AI checks / month</li>
+              <li>50 custom rules per app</li>
+              <li>90 days of history, webhooks</li>
+            </ul>
+            <a class="button secondary" href="/app/login">Choose Pro</a>
+          </div>
+        </div>
+        <p><a href="/pricing.html">Compare plans in detail →</a></p>
+      </div>
+    </section>
+
+    <section id="faq">
+      <div class="wrap">
+        <h2>Questions</h2>
+        <div class="grid">
+          <div class="card"><h3>Does it work in other languages?</h3><p>Yes. Jev judges messages by meaning, so insults and scams are caught in any language your players use.</p></div>
+          <div class="card"><h3>Will it punish friendly banter?</h3><p>It's tuned to leave jokes between friends, gaming trash talk and venting alone, and only acts when it's confident.</p></div>
+          <div class="card"><h3>What if it gets one wrong?</h3><p>Every action is in your app's history. Staff can undo strikes with a pardon, from Discord, the dashboard or the API.</p></div>
+          <div class="card"><h3>What happens to our messages?</h3><p>Clean messages are never stored. Flagged ones are kept as short excerpts in your history. See the <a href="/privacy.html">privacy policy</a>.</p></div>
+          <div class="card"><h3>What happens when I run out of AI checks?</h3><p>Nothing breaks: your apps keep running on the free spam, scam and keyword checks until the allowance resets (the next UTC day if you used the day's share, a tenth of the month's, or the 1st of next month), or until you upgrade.</p></div>
+          <div class="card"><h3>Can I self-host it?</h3><p>Yes. Jef Bot is open source; see the <a href="https://github.com/m0dE/jev-mod">repository</a> for setup.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="cta">
+      <div class="wrap">
+        <h2>Give your mods a break</h2>
+        <p class="lead" style="margin-left:auto;margin-right:auto">Free to start. No card needed.</p>
+        <div class="buttons">
+          <a class="button" href="/app/login">Get started</a>
+          <a class="button secondary" href="/docs/">Read the docs</a>
+        </div>
+      </div>
+    </section>
+  </main>
   <footer>
     <div class="wrap">
-      <a href="privacy.html">Privacy policy</a>
-      <a href="terms.html">Terms of service</a>
+      <span>Jef Bot · AI moderation by Jev</span>
+      <span class="spacer"></span>
+      <a href="/docs/">Docs</a>
+      <a href="/pricing.html">Pricing</a>
+      <a href="/privacy.html">Privacy</a>
+      <a href="/terms.html">Terms</a>
       <a href="https://github.com/m0dE/jev-mod">GitHub</a>
       <a href="https://github.com/m0dE/jev-mod/issues">Contact</a>
     </div>

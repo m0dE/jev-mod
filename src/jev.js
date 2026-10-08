@@ -129,7 +129,7 @@ const customQuestion = (rule) => ({
 
 /**
  * The full check for one message. `customRules` are the server's own rules
- * ([{ id, text, severity }], see guild-settings.js); each is its own yes/no question.
+ * ([{ id, text, severity }], from db.rules); each is its own yes/no question.
  * `rules` is the optional SERVER_RULES text, only sent when set.
  */
 export function jevRequest(content, { rules = null, customRules = [], authorName, replyTo = null, recent = [] }) {

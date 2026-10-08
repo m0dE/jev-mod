@@ -1,0 +1,411 @@
+# Jef Bot: agent guide and API reference
+
+> Jef Bot is hosted AI chat moderation for Discord servers, game chat and any app over HTTP. Jev (TypeSafe's decision model) does the AI judging. This file is everything an AI agent needs to set Jef Bot up and integrate it, in one fetch. HTML version: /docs/agents.html and /docs/api.html. OpenAPI 3.1: /openapi.json.
+
+BASE_URL below means the origin you fetched this file from (scheme + host, no trailing slash). All endpoints are under `$BASE_URL/v1`.
+
+## Concepts
+
+- **Account**: created when a person signs in with Google at `/app/login`. Has a plan: `free`, `starter` ($5/month), `pro` ($20/month) (`internal` is unlimited, operator-only, not sold). Usage (messages, AI checks) is counted per account, all apps together, per calendar month (UTC).
+- **App**: one community being moderated, with its own custom rules, strikes, history and settings. `kind: "api"` = a game or any chat that calls `POST /v1/moderate`; `kind: "discord"` = one Discord server, moderated by the Jef Bot bot (it deletes, DMs, times out, bans and logs by itself).
+- **Account key** `jef_acct_…`: can do everything the account owner can, including getting Stripe Checkout/portal URLs (a person must open them to pay). Use for setup and agents. Never in game servers or clients.
+- **App key** `jef_app_…`: one API app only. Can `POST /v1/moderate`, `GET /v1/account`, read the app, its rules, users and events, and warn/pardon its users. Anything else → 403 `forbidden`. Use in the game server. Never in game clients or browsers.
+- Keys are shown once at creation (`secret`); only a hash is stored. Lost secret → create a new key and delete the old one.
+- **Strike**: an offense against a `userId` in an app. Counts for 24 h (30 days for high severity).
+- **Ladder** (level → punishment): 0 = 2 minute mute, 1 = 10 minute mute, 2 = 1 hour mute, 3 = 6 hour mute, 4 = FINAL warning + 24 hour mute, 5 = ban. An offense starts at its severity's level (low 0, medium 1, high 4) plus the number of active strikes; level ≥ 5 is a ban.
+- **Event**: history entry (`action`, `watch`, `manual`, `pardon`), kept for the plan's `historyDays`. Clean messages are never stored.
+- **AI check**: a message that gets past the free spam/scam/keyword checks and isn't trivial (emoji, "gg", "lol", bot commands) or recently judged clean is sent to Jev = 1 AI check. Confirming a griefing/bullying pattern is one more AI check. At most a tenth of `aiChecksPerMonth` (rounded up) can be used per UTC day. Past the daily or monthly limit, apps keep running on the free checks only until it resets (results include `"aiSkipped": "quota"`); custom rules need the AI.
+- **Downgrades**: limits apply at use time, keeping the oldest items. Apps past the plan's app count have `inPlan: false` and aren't moderated (`POST /v1/moderate` → 403 `plan_limit`; Discord servers on them are ignored). Only an app's oldest `customRules` rules apply. Account keys past the plan's `accountKeys` get 403 `plan_limit` on every request.
+
+## Plan limits
+
+| | Free | Starter | Pro |
+|---|---|---|---|
+| Price | $0 | $5/month | $20/month |
+| Apps | 1 | 3 | 15 |
+| Account keys | 1 | 3 | 10 |
+| App keys per app | 10 | 10 | 10 |
+| Custom rules per app | 3 | 15 | 50 |
+| AI checks per month | 2,000 | 30,000 | 200,000 |
+| AI checks per UTC day (a tenth of the month) | 200 | 3,000 | 20,000 |
+| History kept | 7 days | 30 days | 90 days |
+| Webhooks | no | yes | yes |
+| /v1/moderate requests per second, per app (bursts to 2×) | 5 | 20 | 50 |
+
+`GET /v1/plans` (no auth) returns the same numbers.
+
+## Agent setup, step by step
+
+### 0. What the person does
+
+1. Sign in at `$BASE_URL/app/login` with Google.
+2. Create an account key at `$BASE_URL/app/account` and copy it (shown once).
+3. Give the agent `JEF_URL=$BASE_URL` and `JEF_ACCOUNT_KEY=jef_acct_…` as secrets (never commit them). Revoke the key when done.
+
+### 1. Check the key and the plan
+
+```bash
+curl -s "$JEF_URL/v1/account" -H "Authorization: Bearer $JEF_ACCOUNT_KEY"
+```
+
+```json
+{
+  "account": { "id": "acct_Qm3x…", "email": "owner@example.com", "name": "Sam", "plan": "free",
+               "subscriptionStatus": null, "currentPeriodEnd": null, "createdAt": "2026-10-01T09:12:44.000Z" },
+  "limits": { "id": "free", "name": "Free", "priceUsd": 0, "apps": 1, "accountKeys": 1, "aiChecksPerMonth": 2000,
+              "customRules": 3, "historyDays": 7, "webhooks": false, "requestsPerSecond": 5 },
+  "usage": { "month": "2026-10", "messages": 0, "aiChecks": 0, "apps": 0, "accountKeys": 1 },
+  "admin": false,
+  "auth": "account_key"
+}
+```
+
+`auth` must be `"account_key"` (a 403 `plan_limit` here means this key is past the plan's account-key count). Compare `usage.apps` with `limits.apps`, and planned rules with `limits.customRules`. In `limits`, `null` = unlimited.
+
+### 2. Look for an existing app first
+
+`POST /v1/apps` is not idempotent. List first and reuse an app with the same name:
+
+```bash
+curl -s "$JEF_URL/v1/apps" -H "Authorization: Bearer $JEF_ACCOUNT_KEY" | jq -r '.apps[] | select(.name == "My Game") | .id'
+```
+
+### 3. Create the app with rules and a key (one call)
+
+```bash
+curl -s "$JEF_URL/v1/apps" \
+  -H "Authorization: Bearer $JEF_ACCOUNT_KEY" -H "Content-Type: application/json" \
+  -d '{
+    "name": "My Game",
+    "kind": "api",
+    "rules": [
+      { "text": "No sharing real-world addresses, phone numbers or other personal details", "severity": "high" },
+      { "text": "No begging other players for items or currency", "severity": "low" }
+    ]
+  }'
+```
+
+201 response:
+
+```json
+{
+  "app": { "id": "app_Xk2mP9qLr4Tz", "name": "My Game", "kind": "api", "discordGuildId": null, "settings": {},
+           "webhookUrl": null, "webhookSecret": null, "inPlan": true,
+           "rules": [ { "id": 41, "text": "No sharing …", "severity": "high", "createdAt": "…" },
+                      { "id": 42, "text": "No begging …", "severity": "low", "createdAt": "…" } ],
+           "createdAt": "2026-10-08T12:00:00.000Z" },
+  "appKey": {
+    "key": { "id": "key_7hQ2pW0sLmAa", "kind": "app", "appId": "app_Xk2mP9qLr4Tz", "name": "Default key",
+             "prefix": "jef_app_3kq9", "createdAt": "…", "lastUsedAt": null },
+    "secret": "jef_app_3kq9…"
+  }
+}
+```
+
+Save `appKey.secret` immediately (the game server's `JEF_APP_KEY`); it is never shown again. Fields: `name` (required, ≤80), `kind` (`"api"` default | `"discord"`), `rules` (`text` ≤300, `severity` low|medium|high, default low), `webhookUrl` (paid plans), `createKey` (default true; ignored for Discord). Everything is validated before anything is created; over a limit → 403 `plan_limit`.
+
+### 4. Add or change rules
+
+```bash
+# add → 201 { "rule": { "id": 43, "text": "…", "severity": "low", "createdAt": "…" } }
+curl -s "$JEF_URL/v1/apps/$APP_ID/rules" -H "Authorization: Bearer $JEF_ACCOUNT_KEY" -H "Content-Type: application/json" \
+  -d '{"text": "No spoilers for the new season in general chat", "severity": "low"}'
+# list → { "rules": [ … ] }
+curl -s "$JEF_URL/v1/apps/$APP_ID/rules" -H "Authorization: Bearer $JEF_ACCOUNT_KEY"
+# remove → 204 (404 not_found if already gone)
+curl -s -X DELETE "$JEF_URL/v1/apps/$APP_ID/rules/43" -H "Authorization: Bearer $JEF_ACCOUNT_KEY"
+```
+
+No edit call: add the new rule, then delete the old. For idempotency, list and only add texts not already present. Write rules as behaviour in plain words, not keyword lists.
+
+### 5. Set a webhook (Starter/Pro; Free → 403 plan_limit)
+
+```bash
+curl -s -X PATCH "$JEF_URL/v1/apps/$APP_ID" -H "Authorization: Bearer $JEF_ACCOUNT_KEY" -H "Content-Type: application/json" \
+  -d '{"webhookUrl": "https://game.example.com/hooks/jef"}'
+# → { "app": { …, "webhookUrl": "https://game.example.com/hooks/jef", "webhookSecret": "whsec_…" } }
+```
+
+URL must be public `https://` (no localhost/private IPs, no credentials). Rotate the secret: `POST /v1/apps/{appId}/webhook-secret` → `{ "webhookSecret" }`. Remove: `{"webhookUrl": null}`.
+
+### 6. Link a Discord server
+
+```bash
+curl -s "$JEF_URL/v1/apps" -H "Authorization: Bearer $JEF_ACCOUNT_KEY" -H "Content-Type: application/json" \
+  -d '{"name": "My Discord", "kind": "discord", "rules": [{"text": "No posting game cheats or exploits", "severity": "medium"}]}'
+```
+
+The response includes:
+
+```json
+"discord": {
+  "inviteUrl": "https://discord.com/oauth2/authorize?…&state=A1B2C3D4E5F6",
+  "linkCode": "A1B2C3D4E5F6",
+  "linkCommand": "/jef link code:A1B2C3D4E5F6",
+  "expiresAt": "2026-10-08T13:00:00.000Z",
+  "autoLink": true
+}
+```
+
+1. Give a person with Manage Server on the Discord server both `inviteUrl` and `linkCommand`. With `autoLink: true`, adding the bot through `inviteUrl` links automatically only if that person is signed in to the dashboard (same browser) as the account owner when Discord redirects back; otherwise the dashboard shows `reason=signed_out` or `not_owner` and nothing is linked. In that case, if `autoLink` is false, or if the bot is already there, they run `linkCommand` in the server.
+2. Poll `GET /v1/apps/{appId}` until `app.discordGuildId` is not null.
+3. Codes last 1 hour. New one: `POST /v1/apps/{appId}/discord/link` (same object; old code stops working).
+4. Optional: `PATCH /v1/apps/{appId}` with `{"settings": {"modLogChannelId": "…", "ignoredChannelIds": ["…"], "exemptRoleIds": ["…"]}}` (Discord IDs, 5–25 digits, ≤100 per list; null clears one).
+
+`inviteUrl` is null if the server has no Discord bot configured. Unlink: `DELETE /v1/apps/{appId}/discord`.
+
+### 7. Test moderation
+
+```bash
+curl -s "$JEF_URL/v1/moderate" -H "Authorization: Bearer $JEF_APP_KEY" -H "Content-Type: application/json" \
+  -d '{"userId": "setup-test-user", "username": "SetupTest", "text": "you are an idiot", "room": "test"}'
+# → allow false, category "rudeness", severity "medium", action.type "mute", action.label "10 minute mute"
+```
+
+With an account key, add `"appId"`. Test calls are real (usage + strikes). Clean up:
+
+```bash
+curl -s "$JEF_URL/v1/apps/$APP_ID/users/setup-test-user/pardon" -H "Authorization: Bearer $JEF_ACCOUNT_KEY" \
+  -H "Content-Type: application/json" -d '{}'
+# → { "removed": 1, "strikes": 0 }
+```
+
+### 8. Check usage
+
+```bash
+curl -s "$JEF_URL/v1/account" -H "Authorization: Bearer $JEF_ACCOUNT_KEY" \
+  | jq '{plan: .account.plan, aiChecks: .usage.aiChecks, aiLimit: .limits.aiChecksPerMonth, messages: .usage.messages}'
+```
+
+### 9. Upgrade (a person pays)
+
+```bash
+curl -s "$JEF_URL/v1/billing" -H "Authorization: Bearer $JEF_ACCOUNT_KEY"
+# → { "enabled": true, "plan": "free", "subscriptionStatus": null, "currentPeriodEnd": null, "hasCustomer": false }
+curl -s "$JEF_URL/v1/billing/checkout" -H "Authorization: Bearer $JEF_ACCOUNT_KEY" -H "Content-Type: application/json" \
+  -d '{"plan": "starter"}'
+# → { "url": "https://checkout.stripe.com/…", "kind": "checkout" }
+```
+
+Give `url` to the person. Afterwards poll `GET /v1/account` for the new `plan`. If already subscribed, `kind` is `"portal"` (Stripe customer portal to switch plans); never try to create a second subscription. `plan` must be `starter` or `pro` (else 400). `enabled: false` / 503 `billing_unavailable` = billing not set up on this server. Manage/cancel: `POST /v1/billing/portal` → `{ "url" }` (400 `no_customer` if never subscribed).
+
+### Retrying
+
+Safe to retry: GET, PATCH (same body), DELETE (a repeat gives 404 = already done). Not safe blindly: POST /v1/apps, /keys, /rules, /warn (they create things); list first. No idempotency-key header. 429 → wait `Retry-After` (1 s), doubling if repeated. 5xx → retry later. Also verify every app in `GET /v1/apps` has `inPlan: true`.
+
+## Game integration (summary)
+
+Call `POST /v1/moderate` from the game **server** for every chat message (also harmless ones: spam and pattern detection and room context depend on it). Use a stable `userId` (account ID). Send your own `messageId` and a `room`. Then:
+
+- `allow: true` → show the message.
+- `allow: false` → remove/hide it; remove each of `deleteMessages[]` too.
+- `action.type`: `none`; `delete` (remove only: a repeat within 10 s of a punishment); `mute` (block chat until now + `action.durationMs`); `ban` (permanent, `durationMs` null).
+- Show the player `action.message` (or `reason`).
+- Jef Bot doesn't store mutes/bans; the game keeps `mutedUntil`.
+- AI verdicts can take a few seconds (messages are bundled for up to ~2 s). Either show immediately and remove if flagged (recommended), or hold until the verdict. Decide a fallback (usually allow) for timeouts, 5xx and 429.
+
+## API reference
+
+Conventions: JSON bodies with `Content-Type: application/json` (max 64 KB). ISO 8601 UTC timestamps; durations in ms. IDs are strings except rule, strike and event IDs (integers). Auth column: **none**; **account** = account key or dashboard session (`jef_session` cookie; cookie writes must be same-origin JSON, else 403 `bad_origin` / 415 `json_required`); **any** = account key, session, or the app's own app key. An invalid Authorization header → 401 `invalid_api_key` on every endpoint.
+
+### Errors
+
+`{ "error": { "code": "…", "message": "…" } }`
+
+| Status | code | When |
+|---|---|---|
+| 400 | invalid_request | Missing/invalid/too long field (message names it) |
+| 400 | invalid_json | Body isn't JSON |
+| 400 | no_customer | Billing portal before any purchase |
+| 401 | unauthorized | No credentials |
+| 401 | invalid_api_key | Unknown or deleted key |
+| 403 | forbidden | App key used where an account is needed |
+| 403 | plan_limit | Over plan limit (apps, account keys, rules, webhooks on Free); moderating an app with inPlan false; account key past the plan's key count |
+| 403 | limit | More than 10 app keys on one app |
+| 403 | bad_origin | Cross-site cookie request |
+| 404 | not_found | No such app/key/rule/endpoint (other accounts' objects too) |
+| 409 | guild_taken | Discord server linked to another app |
+| 413 | too_large | Body over 64 KB |
+| 415 | json_required | Cookie request without JSON content type |
+| 429 | rate_limited | Over the app's /v1/moderate rate (Retry-After: 1) |
+| 500 | internal | Server error |
+| 502 | billing_error | Stripe error |
+| 503 | billing_unavailable | Billing not configured / plan not purchasable |
+
+### Objects
+
+**Account**: `{ id, email, name|null, plan: free|starter|pro|internal, subscriptionStatus|null, currentPeriodEnd|null, createdAt }`
+
+**PlanLimits**: `{ id, name, priceUsd, apps, accountKeys, aiChecksPerMonth, customRules, historyDays, webhooks, requestsPerSecond }` (null = unlimited). `/v1/plans` items add `purchasable`.
+
+**Key**: `{ id, kind: account|app, appId|null, name, prefix, createdAt, lastUsedAt|null }`. On creation: `{ key: Key, secret }`.
+
+**App**: `{ id, name, kind: api|discord, discordGuildId|null, settings: { modLogChannelId?, ignoredChannelIds?, exemptRoleIds? }, webhookUrl|null, webhookSecret|null (omitted for app keys), inPlan: boolean (within the plan's app count, oldest first), rules: [Rule] (only the oldest customRules apply), createdAt }`
+
+**Rule**: `{ id (integer), text (≤300), severity: low|medium|high, createdAt }`
+
+**ModerationResult**:
+
+| Field | Type | Meaning |
+|---|---|---|
+| messageId | string | yours, or generated `m_…` |
+| allow | boolean | message may stay (= !flagged) |
+| flagged | boolean | broke a rule |
+| category | string\|null | griefing, toxicity, harassment, hate, threat, negativity, rudeness, spam, scam, custom |
+| severity | string\|null | low, medium, high |
+| reason | string\|null | short, player-facing; custom rules: "Server rule: …" |
+| source | string\|null | spam, rules, jev, ai (Claude) |
+| action | Action | what to do |
+| strikes | integer | active strikes after this message |
+| deleteMessages | [{ messageId, room\|null }] | earlier messages to remove too (spam copies, scam run) |
+| watch | griefing\|harassment\|null | possible start of a pattern; logged, no action |
+| aiSkipped | "quota" | only present when the AI was skipped because the month's or the UTC day's AI checks are used up |
+
+**Action**: `{ type: none|delete|mute|ban, label, durationMs|null, message|null, level? (0–5, on mute/ban) }`. Mute labels/durations: "2 minute mute" 120000, "10 minute mute" 600000, "1 hour mute" 3600000, "6 hour mute" 21600000, "FINAL warning + 24 hour mute" 86400000; "Ban" null.
+
+**Strike**: `{ id, at, until, category, severity, reason, excerpt (≤200)|null, by ("auto" or issuer) }`
+
+**Event**: `{ id, at, type: action|watch|manual|pardon, userId, username, room, messageId, excerpt (≤500), category, severity, reason, source, action (label), strikes, by }` (inapplicable fields null; Discord `room` is "#channel-name").
+
+### Endpoints
+
+#### GET /v1/health — none
+`{ "ok": true }`
+
+#### GET /v1/plans — none
+`{ "plans": [PlanLimits + purchasable] }` (free, starter, pro)
+
+#### GET /v1/account — any
+`{ account: Account, limits: PlanLimits, usage: { month: "YYYY-MM", messages, aiChecks, apps, accountKeys }, admin: boolean, auth: session|account_key|app_key }`
+
+#### GET /v1/keys — account
+`{ keys: [Key] }` (account keys)
+
+#### POST /v1/keys — account
+Body `{ name?: string ≤60 }` → 201 `{ key: Key, secret: "jef_acct_…" }`. 403 plan_limit past the plan's accountKeys.
+
+#### DELETE /v1/keys/{keyId} — account
+204.
+
+#### GET /v1/apps — account
+`{ apps: [App] }`
+
+#### POST /v1/apps — account
+Body `{ name (≤80, required), kind?: "api"|"discord" (default api), rules?: [{ text ≤300, severity? (default low) }], webhookUrl?: string (paid), createKey?: boolean (default true, API apps) }` → 201 `{ app: App, appKey?: { key: Key, secret }, discord?: DiscordLink }`. Created atomically.
+
+**DiscordLink**: `{ inviteUrl|null, linkCode, linkCommand: "/jef link code:…", expiresAt (1 h), autoLink: boolean }`. Auto-linking via inviteUrl requires the person to be signed in to the dashboard as the app's owner when Discord redirects back (else `reason=signed_out|not_owner`; other reasons: not_set_up, cancelled, no_code, expired, not_discord, unconfirmed, guild_taken).
+
+#### GET /v1/apps/{appId} — any
+`{ app: App }`
+
+#### PATCH /v1/apps/{appId} — account
+Body (all optional) `{ name ≤80, webhookUrl: string|null|"" (paid; first set creates webhookSecret; null/"" removes), settings: { modLogChannelId: id|null, ignoredChannelIds: [id]|null, exemptRoleIds: [id]|null } (Discord apps only; merged; ids are 5–25 digit strings, ≤100) }` → `{ app: App }`. Unknown setting → 400.
+
+#### DELETE /v1/apps/{appId} — account
+204. Deletes rules, keys, strikes, history.
+
+#### POST /v1/apps/{appId}/webhook-secret — account
+→ `{ webhookSecret: "whsec_…" }` (old one invalid immediately)
+
+#### GET /v1/apps/{appId}/keys — account
+`{ keys: [Key] }`
+
+#### POST /v1/apps/{appId}/keys — account
+API apps only (Discord → 400). Body `{ name?: ≤60 }` → 201 `{ key: Key, secret: "jef_app_…" }`. Max 10 per app → 403 `limit`.
+
+#### DELETE /v1/apps/{appId}/keys/{keyId} — account
+204.
+
+#### POST /v1/apps/{appId}/discord/link — account
+Discord apps only. → DiscordLink (new code; previous codes invalid).
+
+#### DELETE /v1/apps/{appId}/discord — account
+204. Unlinks the server (bot stays, stops moderating; strikes/history kept).
+
+#### GET /v1/apps/{appId}/rules — any
+`{ rules: [Rule] }`
+
+#### POST /v1/apps/{appId}/rules — account
+Body `{ text ≤300, severity? (default low) }` → 201 `{ rule: Rule }`. 403 plan_limit past customRules.
+
+#### DELETE /v1/apps/{appId}/rules/{ruleId} — account
+204; 404 if no such rule.
+
+#### POST /v1/moderate — any (rate limited per app)
+Body:
+
+| Field | Type | |
+|---|---|---|
+| appId | string | required with account key/session; optional with app key (must match) |
+| userId | string ≤100 (numbers accepted) | required, stable |
+| text | string ≤4000 | required |
+| username | string ≤100 | |
+| messageId | string ≤100 | your ID; used in deleteMessages later |
+| room | string ≤100 | channel/lobby; last 5 messages per room used as context |
+| replyTo | string ≤400 or { username ≤100, text ≤300 } | |
+| context | array ≤20 of string ≤400 or { username ≤100, text ≤300 } | earlier messages, oldest first; replaces room context |
+
+→ ModerationResult. 403 `plan_limit` if the app has `inPlan: false`; 429 with `Retry-After: 1` over the rate. Counts 1 message in usage; 1 AI check only if it reached the AI (+1 for a pattern check). Sends `moderation.action` webhook when punished (paid plans).
+
+#### GET /v1/apps/{appId}/users/{userId} — any
+`{ userId, strikes, active: [Strike], next: { low: Step, medium: Step, high: Step } }` where Step = `{ type: mute|ban, label, durationMs|null, message }`.
+
+#### POST /v1/apps/{appId}/users/{userId}/warn — any
+Body `{ reason ≤300 (required), severity? (default medium), username? ≤100, by? ≤100 (default: session email or key name) }` → `{ strikes, action: Action }`. The caller enforces the action. For a linked Discord app the bot also carries it out on Discord (DM, timeout or ban, mod log), and the response adds `discordOutcome` (the step label, or null if the bot isn't in the server). Sends `moderation.manual`.
+
+#### POST /v1/apps/{appId}/users/{userId}/pardon — any
+Body `{ count?: positive integer (default all), by? ≤100 }` → `{ removed, strikes }`. Doesn't lift mutes already applied. Sends `moderation.pardon`.
+
+#### GET /v1/apps/{appId}/events — any
+Query `limit` (default 50, clamped 1–200), `before` (event id), `userId`. → `{ events: [Event] (newest first), nextBefore: integer|null }`. Next page: `?before=<nextBefore>`; stop when fewer than `limit` events come back.
+
+#### GET /v1/billing — account
+`{ enabled, plan, subscriptionStatus|null, currentPeriodEnd|null, hasCustomer }`
+
+#### POST /v1/billing/checkout — account
+Body `{ plan: "starter"|"pro" }` → `{ url, kind: "checkout"|"portal" }`. Already subscribed → portal URL. 400 for other plans or internal accounts; 503 billing_unavailable; 502 billing_error.
+
+#### POST /v1/billing/portal — account
+→ `{ url }` (Stripe customer portal: change plan, card, invoices, cancel). 400 no_customer before first purchase.
+
+## Webhooks (Starter/Pro)
+
+`POST <webhookUrl>` with `Content-Type: application/json`, `User-Agent: JefBot-Webhooks/1`, body `{ type, appId, createdAt, data }`:
+
+- `moderation.action`: `data` = ModerationResult + `userId`, `username`, `room`, `text` (full message). Sent when a strike is given (not for watch notes or delete-only results).
+- `moderation.manual`: `data` = `{ userId, username, reason, severity, action, strikes, by }`.
+- `moderation.pardon`: `data` = `{ userId, username, removed, strikes, by }`.
+
+Signature header: `Jef-Signature: t=<unix seconds>,v1=<hex>` where v1 = HMAC-SHA256(key = the app's full webhookSecret string, message = `"<t>.<raw body>"`). Verify on the raw body, compare in constant time, reject if |now − t| > 300 s.
+
+```js
+import crypto from 'node:crypto';
+function verify(header, rawBody, secret) {
+  const p = Object.fromEntries((header ?? '').split(',').map((x) => x.split('=', 2)));
+  const t = Number(p.t);
+  if (!Number.isInteger(t) || !p.v1 || Math.abs(Date.now() / 1000 - t) > 300) return false;
+  const expected = crypto.createHmac('sha256', secret).update(`${t}.${rawBody}`).digest('hex');
+  return expected.length === p.v1.length && crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(p.v1));
+}
+```
+
+```python
+import hashlib, hmac, time
+def verify(header, raw_body: bytes, secret: str) -> bool:
+    p = dict(x.split("=", 1) for x in (header or "").split(",") if "=" in x)
+    try: t = int(p["t"])
+    except (KeyError, ValueError): return False
+    if abs(time.time() - t) > 300 or "v1" not in p: return False
+    expected = hmac.new(secret.encode(), f"{t}.".encode() + raw_body, hashlib.sha256).hexdigest()
+    return hmac.compare_digest(expected, p["v1"])
+```
+
+Delivery is best effort: one attempt, 5 s timeout, no redirects, no retries. Only public addresses are contacted (IPv4-in-IPv6 forms included), and the connection is pinned to the checked address. Use `GET /v1/apps/{appId}/events` to catch up. Only sent while the account's plan includes webhooks.
+
+## Moderation rules (summary)
+
+- Built-in rules: be respectful (no insults); no toxicity (harassment, hate, slurs, threats, self-harm incitement); no griefing (organising/bragging about wrecking others' play, raids, spam-pinging, flooding); keep it positive (no trashing the community/staff, no drama); no rudeness; no spam or scams. Banter, gaming trash talk, venting and civil disagreement are allowed.
+- Order: spam checks (flood: 6 messages in 10 s → low; repeat: same message 3× in 60 s, 5× for short ones → medium) → keyword/scam checks → Jev (≥90% confidence for built-in rules, ≥70% for custom rules).
+- Severities: low (subtle rudeness, negativity, flooding, advertising) starts at 2 min; medium (insults, griefing, bullying, repeated spam, possible scams) at 10 min; high (threats, slurs, self-harm incitement, scams) at 24 h final warning and counts 30 days.
+- Griefing and harassment (bullying) need a pattern: the first look-alike message only returns `watch` and logs a `watch` event; a later matching message within 30 minutes is judged together with the person's recent messages and punished if it's a pattern.
+- Custom rules: plain-language text + severity; violations get `category: "custom"`, reason "Server rule: <text>", acted on immediately. Need the AI.

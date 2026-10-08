@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pricing: Jef Bot</title>
+  <meta name="description" content="Jef Bot plans: Free, Starter ($5/month) and Pro ($20/month). Spam, scam and keyword checks are unlimited on every plan; plans differ in AI checks, apps, custom rules, history and webhooks.">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <header class="top">
+    <div class="wrap">
+      <a class="brand" href="/"><img src="/favicon.svg" alt="" width="28" height="28">Jef Bot</a>
+      <nav aria-label="Main">
+        <a href="/docs/">Docs</a>
+        <a href="/pricing.html" aria-current="page">Pricing</a>
+        <a class="hide-sm" href="/docs/api.html">API</a>
+        <a class="hide-sm" href="/app/login">Sign in</a>
+        <a class="button" href="/app/login">Get started</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <div class="hero">
+      <div class="wrap">
+        <h1>Pricing</h1>
+        <p>Start free. Upgrade when your community needs more AI checks, more apps or longer history. Cancel any time.</p>
+      </div>
+    </div>
+
+    <section style="border-top:0;padding-top:0">
+      <div class="wrap">
+        <div class="plans">
+          <div class="plan">
+            <h3>Free</h3>
+            <div class="price">$0</div>
+            <p class="muted small">For trying Jef Bot on one community.</p>
+            <ul>
+              <li>1 app</li>
+              <li>2,000 AI checks / month</li>
+              <li>3 custom rules per app</li>
+              <li>7 days of history</li>
+              <li>5 moderation requests / second</li>
+            </ul>
+            <a class="button secondary" href="/app/login">Start free</a>
+          </div>
+          <div class="plan featured">
+            <h3>Starter</h3>
+            <div class="price">$5 <small>/ month</small></div>
+            <p class="muted small">For an active server or a small game.</p>
+            <ul>
+              <li>3 apps</li>
+              <li>30,000 AI checks / month</li>
+              <li>15 custom rules per app</li>
+              <li>30 days of history</li>
+              <li>Webhooks</li>
+            </ul>
+            <a class="button" href="/app/login">Choose Starter</a>
+          </div>
+          <div class="plan">
+            <h3>Pro</h3>
+            <div class="price">$20 <small>/ month</small></div>
+            <p class="muted small">For busy games and several communities.</p>
+            <ul>
+              <li>15 apps</li>
+              <li>200,000 AI checks / month</li>
+              <li>50 custom rules per app</li>
+              <li>90 days of history</li>
+              <li>Webhooks</li>
+            </ul>
+            <a class="button secondary" href="/app/login">Choose Pro</a>
+          </div>
+        </div>
+        <p class="muted small">Prices are in US dollars. You subscribe after signing in, from your account page; payments are handled by Stripe.</p>
+      </div>
+    </section>
+
+    <section id="compare">
+      <div class="wrap">
+        <h2>Compare plans</h2>
+        <div class="table-wrap">
+          <table class="compare">
+            <thead>
+              <tr><th scope="col">Feature</th><th scope="col">Free</th><th scope="col">Starter</th><th scope="col">Pro</th></tr>
+            </thead>
+            <tbody>
+              <tr><th scope="row">Price</th><td>$0</td><td>$5 / month</td><td>$20 / month</td></tr>
+              <tr><th scope="row">Apps (Discord servers or games)</th><td>1</td><td>3</td><td>15</td></tr>
+              <tr><th scope="row">AI checks per month</th><td>2,000</td><td>30,000</td><td>200,000</td></tr>
+              <tr><th scope="row">Most AI checks in one day (UTC)</th><td>200</td><td>3,000</td><td>20,000</td></tr>
+              <tr><th scope="row">Spam, scam and keyword checks</th><td>Unlimited</td><td>Unlimited</td><td>Unlimited</td></tr>
+              <tr><th scope="row">Messages moderated</th><td>Unlimited</td><td>Unlimited</td><td>Unlimited</td></tr>
+              <tr><th scope="row">Custom rules per app</th><td>3</td><td>15</td><td>50</td></tr>
+              <tr><th scope="row">Moderation history kept</th><td>7 days</td><td>30 days</td><td>90 days</td></tr>
+              <tr><th scope="row">Account API keys</th><td>1</td><td>3</td><td>10</td></tr>
+              <tr><th scope="row">App API keys per app</th><td>10</td><td>10</td><td>10</td></tr>
+              <tr><th scope="row">Webhooks</th><td class="no">No</td><td class="yes">Yes</td><td class="yes">Yes</td></tr>
+              <tr><th scope="row"><code>/v1/moderate</code> requests per second, per app</th><td>5</td><td>20</td><td>50</td></tr>
+              <tr><th scope="row">Discord bot, dashboard, HTTP API, strikes and punishment ladder</th><td class="yes">Yes</td><td class="yes">Yes</td><td class="yes">Yes</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section id="ai-checks">
+      <div class="wrap">
+        <h2>What counts as an AI check?</h2>
+        <p class="lead">Only messages that reach the AI (Jev) count. Most chat never does.</p>
+        <div class="grid">
+          <div class="card"><h3>Free, never counted</h3><p>Spam (flooding, repeated messages), scam patterns and the built-in keyword rules run first, on every message, on every plan. A message they catch is handled without the AI.</p></div>
+          <div class="card"><h3>Skipped, never counted</h3><p>Trivial messages (emoji, "gg", "lol", "ok", bot commands like <code>!rank</code>) and text already judged clean in the last hour don't go to the AI.</p></div>
+          <div class="card"><h3>Counted</h3><p>Everything else is one AI check, whatever the verdict. Confirming a suspected griefing or bullying pattern is one more. Checks are counted per account, across all its apps, per calendar month (UTC), and at most a tenth of the monthly allowance can be used in one UTC day.</p></div>
+          <div class="card"><h3>When you run out</h3><p>Nothing stops working. Your apps run on the free spam, scam and keyword checks only, and custom rules (which need the AI) pause, until the next UTC day if you hit the daily share, or the 1st of next month if the monthly allowance is used up. API responses say <code>"aiSkipped": "quota"</code>. Upgrading raises the limits straight away.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="faq">
+      <div class="wrap">
+        <h2>Billing questions</h2>
+        <div class="grid">
+          <div class="card"><h3>How do I upgrade or cancel?</h3><p>From your <a href="/app/account">account page</a>. Changing plan, updating your card, downloading invoices and cancelling all happen in the Stripe customer portal. A cancelled plan stays active until the end of the period you paid for.</p></div>
+          <div class="card"><h3>What if a payment fails?</h3><p>Stripe retries it. You keep your plan while it does; if it can't be collected, the account moves to the Free plan.</p></div>
+          <div class="card"><h3>What happens to my apps if I downgrade?</h3><p>Nothing is deleted straight away, but the smaller plan's limits apply: only your oldest apps up to the plan's count are moderated (the rest are paused, and their Discord servers ignored), only each app's oldest custom rules up to the limit apply, newer account keys past the limit stop working, webhooks stop on Free, and history older than the plan keeps is removed. Delete what you don't need, or upgrade again, and everything resumes.</p></div>
+          <div class="card"><h3>Refunds?</h3><p>See the <a href="/terms.html#payments">terms</a>. If something went wrong, <a href="https://github.com/m0dE/jev-mod/issues">get in touch</a>.</p></div>
+        </div>
+      </div>
+    </section>
+  </main>
+  <footer>
+    <div class="wrap">
+      <span>Jef Bot · AI moderation by Jev</span>
+      <span class="spacer"></span>
+      <a href="/docs/">Docs</a>
+      <a href="/pricing.html">Pricing</a>
+      <a href="/privacy.html">Privacy</a>
+      <a href="/terms.html">Terms</a>
+      <a href="https://github.com/m0dE/jev-mod">GitHub</a>
+      <a href="https://github.com/m0dE/jev-mod/issues">Contact</a>
+    </div>
+  </footer>
+</body>
+</html>

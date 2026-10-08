@@ -1,0 +1,26 @@
+# Jef Bot
+
+> Jef Bot is hosted AI chat moderation for Discord servers, game chat and any app over HTTP. It removes rude, toxic, spam and scam messages, spots griefing and bullying patterns, and escalates mutes (2 min → 10 min → 1 h → 6 h → 24 h final warning → ban). Jev, TypeSafe's decision model, does the AI judging. Games call `POST /v1/moderate` from their server and enforce the returned action; Discord servers get a bot that enforces it. AI agents can set everything up headlessly with an account key (`jef_acct_…`).
+
+Key facts: JSON API under `/v1` on this site; auth is `Authorization: Bearer <key>`; account keys can do everything (including getting a Stripe checkout link for a person), app keys (`jef_app_…`) only moderate and read one app; errors are `{ "error": { "code", "message" } }`. Plans: Free, Starter ($5/mo), Pro ($20/mo). Spam, scam and keyword checks are unlimited; only messages that reach the AI count as AI checks (at most a tenth of the monthly allowance per UTC day).
+
+## Docs
+
+- [Setup by AI agents](/docs/agents.html): exact, copy-pasteable API calls to create apps with rules and keys, set webhooks, link Discord, check usage and get an upgrade link
+- [API reference](/docs/api.html): every /v1 endpoint, fields, limits, errors, rate limits and pagination
+- [Game chat quickstart](/docs/quickstart-game.html): call /v1/moderate from a game server (curl, Node, Python, C#) and enforce mutes and bans
+- [Discord quickstart](/docs/quickstart-discord.html): add the bot, link a server, role order, slash commands, settings
+- [Rules and punishments](/docs/rules.html): categories, severities, the punishment ladder, cooldowns, patterns, custom rules, AI quota
+- [Webhooks](/docs/webhooks.html): event payloads and Jef-Signature verification (Node, Python)
+- [Overview](/docs/): concepts (account, apps, keys, strikes, plans)
+
+## Machine-readable
+
+- [OpenAPI 3.1 spec](/openapi.json): the whole /v1 API
+- [Full text](/llms-full.txt): the agent guide and API reference in one plain-markdown file
+
+## Optional
+
+- [Pricing](/pricing.html): plan limits compared
+- [Privacy policy](/privacy.html)
+- [Terms of service](/terms.html)

@@ -1,0 +1,311 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Game chat quickstart: Jef Bot</title>
+  <meta name="description" content="Moderate your game's chat with Jef Bot in five minutes: create an API app, call POST /v1/moderate from your game server, and enforce mutes and bans.">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <header class="top">
+    <div class="wrap">
+      <a class="brand" href="/"><img src="/favicon.svg" alt="" width="28" height="28">Jef Bot</a>
+      <nav aria-label="Main">
+        <a href="/docs/" aria-current="page">Docs</a>
+        <a href="/pricing.html">Pricing</a>
+        <a class="hide-sm" href="/docs/api.html">API</a>
+        <a class="hide-sm" href="/app/login">Sign in</a>
+        <a class="button" href="/app/login">Get started</a>
+      </nav>
+    </div>
+  </header>
+  <div class="wrap docs-layout">
+    <nav class="sidebar" aria-label="Documentation">
+      <h2>Getting started</h2>
+      <ul>
+        <li><a href="/docs/">Overview</a></li>
+        <li><a href="/docs/quickstart-game.html" aria-current="page">Game chat quickstart</a></li>
+        <li><a href="/docs/quickstart-discord.html">Discord quickstart</a></li>
+        <li><a href="/docs/agents.html">Setup by AI agents</a></li>
+      </ul>
+      <h2>Reference</h2>
+      <ul>
+        <li><a href="/docs/api.html">API reference</a></li>
+        <li><a href="/docs/webhooks.html">Webhooks</a></li>
+        <li><a href="/docs/rules.html">Rules and punishments</a></li>
+        <li><a href="/openapi.json">OpenAPI spec</a></li>
+        <li><a href="/llms.txt">llms.txt</a></li>
+      </ul>
+      <h2>Account</h2>
+      <ul>
+        <li><a href="/pricing.html">Pricing</a></li>
+        <li><a href="/app">Dashboard</a></li>
+      </ul>
+    </nav>
+    <main id="main" class="content">
+      <h1>Game chat quickstart</h1>
+      <p class="lead">Moderate your game's chat in five minutes. Your game server sends each chat message to Jef Bot and gets back what to do: let it through, or remove it and mute or ban the player.</p>
+
+      <div class="toc">
+        <strong>On this page</strong>
+        <ul>
+          <li><a href="#create">1. Create an API app</a></li>
+          <li><a href="#call">2. Send each message to <code>/v1/moderate</code></a></li>
+          <li><a href="#response">3. Read the verdict</a></li>
+          <li><a href="#enforce">4. Enforce it in your game</a></li>
+          <li><a href="#flow">Show first, or wait for the verdict?</a></li>
+          <li><a href="#tips">Tips and gotchas</a></li>
+        </ul>
+      </div>
+
+      <div class="warn">
+        <p><strong>Call Jef Bot from your game server, never from the game client.</strong> Anything shipped to players (a game build, a web page, a mobile app) can be unpacked, and the key with it. Clients send chat to your server as usual; your server asks Jef Bot and decides what to broadcast.</p>
+      </div>
+
+      <h2 id="create">1. Create an API app</h2>
+      <p><strong>In the dashboard:</strong> <a href="/app/login">sign in</a>, create an app of kind <strong>API</strong> (a game or other app), and copy the <strong>app key</strong> (<code>jef_app_…</code>) it shows you. The key is shown only once; store it as a secret on your game server, for example in an environment variable <code>JEF_APP_KEY</code>.</p>
+      <p><strong>Or with the API</strong>, using an account key from <a href="/app/account">/app/account</a>:</p>
+      <pre data-lang="curl"><code>curl -s https://jef.example.com/v1/apps \
+  -H "Authorization: Bearer $JEF_ACCOUNT_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "My Game", "kind": "api"}'</code></pre>
+      <p>The response has the app and its first app key. <code>appKey.secret</code> is the only time you'll see the full key:</p>
+      <pre data-lang="json"><code>{
+  "app": { "id": "app_Xk2mP9qLr4Tz", "name": "My Game", "kind": "api", "rules": [], ... },
+  "appKey": {
+    "key": { "id": "key_7hQ2pW0sLmAa", "kind": "app", "appId": "app_Xk2mP9qLr4Tz", "name": "Default key", "prefix": "jef_app_3kq9", ... },
+    "secret": "jef_app_3kq9…"
+  }
+}</code></pre>
+
+      <h2 id="call">2. Send each message to <code>/v1/moderate</code></h2>
+      <p>For every chat message a player sends, your server calls <code>POST /v1/moderate</code> with the app key. With an app key you don't need to send <code>appId</code>.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th scope="col">Field</th><th scope="col"></th><th scope="col">What to send</th></tr></thead>
+          <tbody>
+            <tr><td><code>userId</code></td><td>required</td><td>The player's <strong>stable</strong> ID (account ID, not display name), up to 100 characters. Strikes are counted per <code>userId</code>, so if it changes, their record resets.</td></tr>
+            <tr><td><code>text</code></td><td>required</td><td>The message, up to 4,000 characters.</td></tr>
+            <tr><td><code>username</code></td><td>optional</td><td>Display name, up to 100 characters. Shown in history and to the AI as context.</td></tr>
+            <tr><td><code>messageId</code></td><td>recommended</td><td>Your ID for this message, up to 100 characters. Needed if you want <code>deleteMessages</code> to point at earlier messages you can find again. If you leave it out, Jef Bot makes one up.</td></tr>
+            <tr><td><code>room</code></td><td>recommended</td><td>The chat channel, lobby or match ID, up to 100 characters. Jef Bot remembers the last few messages per room and gives them to the AI as context.</td></tr>
+            <tr><td><code>replyTo</code></td><td>optional</td><td>What the message replies to: a string (up to 400) or <code>{ "username", "text" }</code>.</td></tr>
+            <tr><td><code>context</code></td><td>optional</td><td>Up to 20 earlier messages, oldest first, as strings (up to 400 each) or <code>{ "username", "text" }</code>. Overrides the remembered room context.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="tabs">
+<pre data-lang="curl"><code>curl -s https://jef.example.com/v1/moderate \
+  -H "Authorization: Bearer $JEF_APP_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "userId": "player_18842",
+    "username": "Tobi",
+    "text": "you are such an idiot, uninstall",
+    "messageId": "msg_99120",
+    "room": "lobby-3"
+  }'</code></pre>
+<pre data-lang="Node"><code>// Node 18+ (built-in fetch). Runs on your game server.
+const JEF_URL = 'https://jef.example.com';
+const JEF_APP_KEY = process.env.JEF_APP_KEY;
+
+export async function moderate({ userId, username, text, messageId, room }) {
+  const res = await fetch(`${JEF_URL}/v1/moderate`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${JEF_APP_KEY}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ userId, username, text, messageId, room }),
+    signal: AbortSignal.timeout(10_000),
+  });
+  if (!res.ok) {
+    const { error } = await res.json().catch(() => ({}));
+    throw new Error(`Jef Bot ${res.status}: ${error?.code} ${error?.message}`);
+  }
+  return res.json(); // { allow, action, reason, deleteMessages, ... }
+}</code></pre>
+<pre data-lang="Python"><code># pip install requests. Runs on your game server.
+import os
+import requests
+
+JEF_URL = "https://jef.example.com"
+JEF_APP_KEY = os.environ["JEF_APP_KEY"]
+
+def moderate(user_id, username, text, message_id=None, room=None):
+    res = requests.post(
+        f"{JEF_URL}/v1/moderate",
+        headers={"Authorization": f"Bearer {JEF_APP_KEY}"},
+        json={"userId": user_id, "username": username, "text": text,
+              "messageId": message_id, "room": room},
+        timeout=10,
+    )
+    if not res.ok:
+        err = res.json().get("error", {}) if res.headers.get("content-type", "").startswith("application/json") else {}
+        raise RuntimeError(f"Jef Bot {res.status_code}: {err.get('code')} {err.get('message')}")
+    return res.json()  # {"allow": ..., "action": {...}, ...}</code></pre>
+<pre data-lang="C#"><code>// .NET 6+. Runs on your game server (not in the Unity client).
+using System.Net.Http.Headers;
+using System.Net.Http.Json;
+using System.Text.Json;
+
+public static class JefBot
+{
+    static readonly HttpClient Http = new() { BaseAddress = new Uri("https://jef.example.com"), Timeout = TimeSpan.FromSeconds(10) };
+
+    static JefBot()
+    {
+        Http.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", Environment.GetEnvironmentVariable("JEF_APP_KEY"));
+    }
+
+    public static async Task&lt;JsonElement&gt; Moderate(string userId, string username, string text, string messageId, string room)
+    {
+        var res = await Http.PostAsJsonAsync("/v1/moderate", new { userId, username, text, messageId, room });
+        var body = await res.Content.ReadFromJsonAsync&lt;JsonElement&gt;();
+        if (!res.IsSuccessStatusCode)
+            throw new Exception($"Jef Bot {(int)res.StatusCode}: {body.GetProperty("error").GetProperty("code")}");
+        return body; // body.GetProperty("allow").GetBoolean(), body.GetProperty("action") ...
+    }
+}</code></pre>
+<pre data-lang="Lua"><code>-- Pseudocode for a Lua game server; adapt to your engine's HTTP and JSON libraries.
+local function moderate(player, text, messageId, room)
+  local res = http.post(JEF_URL .. "/v1/moderate", {
+    headers = { Authorization = "Bearer " .. JEF_APP_KEY, ["Content-Type"] = "application/json" },
+    body = json.encode({ userId = player.accountId, username = player.name,
+                         text = text, messageId = messageId, room = room }),
+    timeout = 10,
+  })
+  if res.status ~= 200 then return nil, res.body end
+  return json.decode(res.body)
+end</code></pre>
+      </div>
+
+      <h2 id="response">3. Read the verdict</h2>
+      <p>A clean message:</p>
+      <pre data-lang="json"><code>{
+  "messageId": "msg_99121",
+  "allow": true,
+  "flagged": false,
+  "category": null,
+  "severity": null,
+  "reason": null,
+  "source": "jev",
+  "action": { "type": "none", "label": "No action", "durationMs": null, "message": null },
+  "strikes": 0,
+  "deleteMessages": [],
+  "watch": null
+}</code></pre>
+      <p>A message that breaks the rules:</p>
+      <pre data-lang="json"><code>{
+  "messageId": "msg_99120",
+  "allow": false,
+  "flagged": true,
+  "category": "rudeness",
+  "severity": "medium",
+  "reason": "Insulting another member",
+  "source": "rules",
+  "action": {
+    "type": "mute",
+    "label": "10 minute mute",
+    "durationMs": 600000,
+    "message": "That crossed the line. You have been muted for 10 minutes.",
+    "level": 1
+  },
+  "strikes": 1,
+  "deleteMessages": [],
+  "watch": null
+}</code></pre>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th scope="col">Field</th><th scope="col">Meaning</th></tr></thead>
+          <tbody>
+            <tr><td><code>allow</code></td><td><code>true</code>: the message is fine. <code>false</code>: remove it (or don't show it).</td></tr>
+            <tr><td><code>action.type</code></td><td><code>none</code>, <code>delete</code> (remove the message only), <code>mute</code> (remove and mute for <code>action.durationMs</code>) or <code>ban</code> (remove and ban; <code>durationMs</code> is <code>null</code>).</td></tr>
+            <tr><td><code>action.message</code></td><td>A ready-made message for the player, e.g. "You have been muted for 10 minutes." <code>null</code> for <code>none</code> and <code>delete</code>.</td></tr>
+            <tr><td><code>reason</code></td><td>Short reason, safe to show the player ("Insulting another member", "Server rule: …").</td></tr>
+            <tr><td><code>category</code>, <code>severity</code></td><td>What kind of rule was broken and how badly (<code>low</code>, <code>medium</code>, <code>high</code>). See <a href="/docs/rules.html">rules</a>.</td></tr>
+            <tr><td><code>strikes</code></td><td>The player's active strikes after this message.</td></tr>
+            <tr><td><code>deleteMessages</code></td><td>Earlier messages to remove too: <code>[{ "messageId", "room" }]</code>. Filled for spam waves (the earlier copies) and scams (the rest of the scam run).</td></tr>
+            <tr><td><code>watch</code></td><td><code>"griefing"</code> or <code>"harassment"</code> when the message looks like the start of a pattern. No action yet; it's noted in history. Otherwise <code>null</code>.</td></tr>
+            <tr><td><code>source</code></td><td>What decided: <code>spam</code>, <code>rules</code> (keywords and scam patterns), <code>jev</code> or <code>ai</code> (Claude, on self-hosted servers configured that way).</td></tr>
+            <tr><td><code>aiSkipped</code></td><td>Only present as <code>"quota"</code> when your monthly AI checks are used up and only the free checks ran.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="enforce">4. Enforce it in your game</h2>
+      <p>Jef Bot tells you what to do; your game does it. Jef Bot doesn't remember mutes or bans for you (it remembers strikes), so keep a <code>mutedUntil</code> per player on your side.</p>
+      <pre data-lang="Node"><code>async function onChat(player, text, room) {
+  if (Date.now() &lt; (player.mutedUntil ?? 0)) return player.tell('You are muted.');
+  if (player.banned) return;
+
+  const messageId = crypto.randomUUID();
+  let verdict;
+  try {
+    verdict = await moderate({ userId: player.accountId, username: player.name, text, messageId, room });
+  } catch (err) {
+    console.warn('moderation unavailable, letting message through', err.message);
+    return broadcast(room, { messageId, from: player.name, text });
+  }
+
+  for (const old of verdict.deleteMessages) removeMessage(old.room ?? room, old.messageId);
+  if (verdict.allow) return broadcast(room, { messageId, from: player.name, text });
+
+  const { action } = verdict;
+  if (action.type === 'mute') player.mutedUntil = Date.now() + action.durationMs;
+  if (action.type === 'ban') banPlayer(player.accountId);
+  player.tell(action.message ?? `Message removed: ${verdict.reason}`);
+}</code></pre>
+
+      <h2 id="flow">Show first, or wait for the verdict?</h2>
+      <p>Most messages come back quickly, but a message that goes to the AI can take a few seconds: Jev bundles messages for up to about two seconds before checking them. Pick one of two flows:</p>
+      <div class="grid two">
+        <div class="card">
+          <h3>Show immediately, remove if flagged</h3>
+          <p>Broadcast the message right away and call <code>/v1/moderate</code> in the background. If the verdict says <code>allow: false</code>, remove the message from everyone's chat by its <code>messageId</code> and apply the action. Chat feels instant; a bad message may be visible for a moment.</p>
+          <p><strong>Recommended</strong> for most games.</p>
+        </div>
+        <div class="card">
+          <h3>Wait for the verdict</h3>
+          <p>Hold the message until the verdict arrives, then broadcast it only if <code>allow</code> is true. Nothing bad is ever shown, but every message waits. Show the sender their own message straight away so it doesn't feel laggy.</p>
+          <p>Good for games for younger players.</p>
+        </div>
+      </div>
+      <p>In both cases, decide what happens if Jef Bot can't be reached (a timeout, a <code>5xx</code>, a <code>429</code>). Usually that's "let it through".</p>
+
+      <h2 id="tips">Tips and gotchas</h2>
+      <ul>
+        <li><strong>Send every message,</strong> including ones that look harmless. Spam (6 messages in 10 seconds, the same message 3 times in a minute) and griefing or bullying patterns are spotted across a player's messages, and each room's recent messages become context for the next.</li>
+        <li><strong>Use stable IDs.</strong> <code>userId</code> should be your player account ID. Use the same <code>room</code> value for the same chat channel.</li>
+        <li><strong>Rate limit:</strong> 5, 20 or 50 requests per second per app (Free, Starter, Pro), with short bursts up to twice that. Over it you get <code>429 rate_limited</code> with <code>Retry-After: 1</code>.</li>
+        <li><strong><code>403 plan_limit</code> from <code>/v1/moderate</code></strong> means the app is past your plan's app count (for example after a downgrade) and isn't moderated. Delete an older app or upgrade.</li>
+        <li><strong>AI allowance:</strong> each plan has a monthly number of AI checks, and at most a tenth of it can be used per UTC day. When either runs out, only the free checks run and responses include <code>"aiSkipped": "quota"</code>.</li>
+        <li><strong><code>action.type: "delete"</code></strong> happens when a player breaks the rules again within 10 seconds of being punished (a flood): the message goes, but they aren't punished twice.</li>
+        <li><strong>Add your own rules</strong> in the dashboard or with <code>POST /v1/apps/{appId}/rules</code>, e.g. <em>"No sharing real-world addresses or phone numbers"</em>. See <a href="/docs/rules.html#custom">custom rules</a>.</li>
+        <li><strong>Staff tools:</strong> look up a player with <code>GET /v1/apps/{appId}/users/{userId}</code>, punish by hand with <code>…/warn</code>, undo with <code>…/pardon</code>. App keys can call these too. See the <a href="/docs/api.html#users">API reference</a>.</li>
+        <li><strong>Several game servers?</strong> Create more app keys for the same app (up to 10) so you can revoke one without touching the others.</li>
+      </ul>
+
+      <nav class="pager" aria-label="More pages">
+        <a href="/docs/">← Overview</a>
+        <a href="/docs/quickstart-discord.html">Discord quickstart →</a>
+      </nav>
+    </main>
+  </div>
+  <footer>
+    <div class="wrap">
+      <span>Jef Bot · AI moderation by Jev</span>
+      <span class="spacer"></span>
+      <a href="/docs/">Docs</a>
+      <a href="/pricing.html">Pricing</a>
+      <a href="/privacy.html">Privacy</a>
+      <a href="/terms.html">Terms</a>
+      <a href="https://github.com/m0dE/jev-mod">GitHub</a>
+      <a href="https://github.com/m0dE/jev-mod/issues">Contact</a>
+    </div>
+  </footer>
+  <script src="/docs/docs.js" defer></script>
+</body>
+</html>

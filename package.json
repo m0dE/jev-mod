@@ -1,20 +1,24 @@
 {
-  "name": "jev-mod",
+  "name": "jef-bot",
   "version": "1.0.0",
-  "description": "Discord moderation bot: deletes rule-breaking messages (griefing, toxic, negative, rude) and escalates warnings — the 4th offense is a ban.",
+  "description": "Jef Bot: AI chat moderation for Discord servers and game chat. Deletes rule-breaking messages (griefing, toxic, negative, rude, spam, scams) and escalates mutes up to a ban. Hosted, multi-account, with an HTTP API.",
   "type": "module",
   "main": "src/index.js",
   "scripts": {
-    "start": "node src/index.js",
+    "start": "node --disable-warning=ExperimentalWarning src/index.js",
     "register": "node src/register-commands.js",
-    "test": "node --test"
+    "test": "node --disable-warning=ExperimentalWarning --test"
   },
-  "engines": { "node": ">=18" },
+  "engines": {
+    "node": ">=22.13"
+  },
   "license": "MIT",
   "private": true,
   "dependencies": {
     "@anthropic-ai/sdk": "^0.131.0",
     "discord.js": "^14.27.0",
-    "dotenv": "^18.0.6"
+    "dotenv": "^18.0.6",
+    "express": "^5.2.1",
+    "stripe": "^23.0.0"
   }
 }

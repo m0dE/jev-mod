@@ -3,63 +3,101 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Terms of service: JEV Mod</title>
-  <link rel="stylesheet" href="style.css">
+  <title>Terms of service: Jef Bot</title>
+  <meta name="description" content="The terms for using Jef Bot, the hosted chat-moderation service, including plans, payments, cancellation and refunds.">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/style.css">
 </head>
 <body>
+  <a class="skip" href="#main">Skip to content</a>
   <header class="top">
     <div class="wrap">
-      <a class="brand" href="./">JEV Mod</a>
-      <nav>
-        <a href="./">Home</a>
-        <a href="privacy.html">Privacy</a>
+      <a class="brand" href="/"><img src="/favicon.svg" alt="" width="28" height="28">Jef Bot</a>
+      <nav aria-label="Main">
+        <a href="/docs/">Docs</a>
+        <a href="/pricing.html">Pricing</a>
+        <a class="hide-sm" href="/docs/api.html">API</a>
+        <a class="hide-sm" href="/app/login">Sign in</a>
+        <a class="button" href="/app/login">Get started</a>
       </nav>
     </div>
   </header>
-
-  <main class="wrap doc">
+  <main id="main" class="wrap doc">
+    <!--
+      NOTE FOR THE OPERATOR: these terms were drafted from how the service works and have NOT been
+      reviewed by a lawyer. Have them reviewed before relying on them. In particular: the operator's
+      legal name and address, governing law and venue, the refund policy, consumer-law withdrawal
+      rights (e.g. EU/UK), taxes, and the limitation-of-liability wording.
+    -->
     <h1>Terms of service</h1>
-    <p class="date">Effective October 7, 2026</p>
+    <p class="date">Effective October 8, 2026</p>
 
-    <p>By adding JEV Mod to a Discord server or using its commands, you agree to these terms. If you don't agree, don't add or use the bot.</p>
+    <p>These terms cover your use of Jef Bot: the website, dashboard, API and Discord bot. By creating an account, adding Jef Bot to a Discord server or using the API, you agree to them. If you don't agree, don't use Jef Bot. If you use Jef Bot for an organisation, you accept these terms for it.</p>
 
     <h2>The service</h2>
-    <p>JEV Mod automatically checks messages in the servers it's added to, deletes the ones it judges to break the built-in rules or the server's own rules, and mutes or bans the authors as described on the <a href="./">homepage</a>. It is offered free of charge, and features may change or be discontinued at any time.</p>
+    <p>Jef Bot checks chat messages from the communities you connect to it, using built-in checks and the Jev AI model, and tells you (or, on Discord, carries out) what should happen: removing messages and muting or banning their senders, as described in the <a href="/docs/">documentation</a>. Features may change over time.</p>
+
+    <h2>Your account and keys</h2>
+    <ul>
+      <li>You sign in with a Google account and must keep it secure. You're responsible for everything done with your account and your API keys, including by AI agents or scripts you give them to.</li>
+      <li>Keep API keys secret, out of game clients, websites and public repositories, and delete any key that may have leaked.</li>
+    </ul>
+
+    <h2 id="payments">Plans, payments and cancellation</h2>
+    <ul>
+      <li>The Free plan costs nothing. Starter and Pro are monthly subscriptions at the prices on the <a href="/pricing.html">pricing page</a>, billed in advance through <strong>Stripe</strong>, plus any taxes that apply. Subscriptions renew automatically each month until cancelled.</li>
+      <li>You can change plan, update your payment method, see invoices and cancel at any time in the billing portal, from your <a href="/app/account">account page</a>. A cancelled subscription stays active until the end of the current paid period, then the account moves to the Free plan.</li>
+      <li>An account has one subscription. If a second one is ever started by mistake, the older one is cancelled automatically and its unused time is credited to your Stripe customer balance (used against future invoices), not refunded to your card.</li>
+      <li>If a payment fails, Stripe retries it and you keep your plan in the meantime. If it can't be collected, the subscription ends and the account moves to the Free plan.</li>
+      <li><strong>Refunds:</strong> payments aren't refundable for partly used periods, except where the law requires otherwise or we agree to it. If you were charged by mistake, <a href="https://github.com/m0dE/jev-mod/issues">contact us</a>.</li>
+      <li>We may change prices or plan limits with at least 30 days' notice before your next renewal. On the Free plan, limits may change at any time.</li>
+      <li>Moving to a smaller plan doesn't delete your apps, but its limits apply: only your oldest apps, custom rules and account keys up to the plan's limits keep working, webhooks stop on Free, and history older than the plan keeps is deleted.</li>
+    </ul>
 
     <h2>It can make mistakes</h2>
-    <p>Automated moderation is imperfect. JEV Mod may miss messages that break the rules, and may act on messages that don't. It is a tool to help a server's staff, not a replacement for them. Server staff are responsible for reviewing its actions in the mod log and reversing wrong ones, for example with <code>/pardon</code> or by lifting a timeout.</p>
+    <p>Automated moderation is imperfect. Jef Bot may miss messages that break the rules and may act on messages that don't. It is a tool to help your moderators, not a replacement for them. You are responsible for reviewing its actions and reversing wrong ones, for example with a pardon or by lifting a mute.</p>
 
-    <h2>Server admins' responsibilities</h2>
+    <h2>Your responsibilities</h2>
     <ul>
-      <li>You must have permission to add bots to the server, and must make sure your server's members know it is moderated, for example in your rules channel.</li>
-      <li>You are responsible for the custom rules you add and for how you configure the bot.</li>
-      <li>You must follow Discord's <a href="https://discord.com/terms">Terms of Service</a> and <a href="https://discord.com/guidelines">Community Guidelines</a>.</li>
+      <li>You must have the right to moderate the communities you connect, and must tell their members or players that chat is moderated by an automated service and that messages are processed as described in the <a href="/privacy.html">privacy policy</a>.</li>
+      <li>You are responsible for your custom rules, settings, how you enforce the results in your game or app, and your webhook endpoints.</li>
+      <li>On Discord, you must follow Discord's <a href="https://discord.com/terms">Terms of Service</a> and <a href="https://discord.com/guidelines">Community Guidelines</a>.</li>
     </ul>
 
     <h2>Acceptable use</h2>
-    <p>Don't use JEV Mod to harass people, to target members for reasons unrelated to their conduct, or in breach of any law or Discord policy. Don't try to disrupt the bot, overload it, or get around its limits. We may stop the bot serving a server that misuses it.</p>
+    <p>Don't use Jef Bot to harass people, to target people for reasons unrelated to their conduct, to process content you have no right to process, or in breach of any law or platform policy. Don't try to disrupt the service, overload it, get around its limits or rate limits, or use it to build a competing classifier. We may suspend or close accounts, revoke keys or stop serving a Discord server that breaks these terms.</p>
 
     <h2>Data</h2>
-    <p>How the bot handles messages and personal data is described in the <a href="privacy.html">privacy policy</a>.</p>
+    <p>How Jef Bot handles personal data and messages is described in the <a href="/privacy.html">privacy policy</a>. You can delete your apps, and their data, at any time.</p>
+
+    <h2>Availability</h2>
+    <p>We aim to keep Jef Bot running but don't guarantee it will always be available or fast. Plan your integration so that your chat keeps working if Jef Bot can't be reached.</p>
+
+    <h2>Ending</h2>
+    <p>You can stop using Jef Bot at any time: cancel any subscription, delete your apps and remove the bot from your servers. To have your account deleted, <a href="https://github.com/m0dE/jev-mod/issues">contact us</a>.</p>
 
     <h2>No warranty</h2>
-    <p>JEV Mod is provided "as is" and "as available", without warranties of any kind, including that it will be accurate, uninterrupted or error-free.</p>
+    <p>Jef Bot is provided "as is" and "as available", without warranties of any kind, including that it will be accurate, uninterrupted or error-free.</p>
 
     <h2>Limitation of liability</h2>
-    <p>To the extent the law allows, the people who run JEV Mod are not liable for any loss or damage arising from its use, including from messages it deleted or missed, or from members it muted or banned.</p>
+    <p>To the extent the law allows, the people who run Jef Bot are not liable for indirect or consequential loss, or for any loss arising from messages it removed or missed or from users it muted or banned. Our total liability for any claim is limited to the amount you paid us in the 12 months before it arose.</p>
 
     <h2>Changes</h2>
-    <p>These terms may be updated; the new version will be posted here with a new effective date. Continuing to use the bot after a change means you accept the updated terms.</p>
+    <p>These terms may be updated; the new version will be posted here with a new effective date. Continuing to use Jef Bot after a change means you accept the updated terms.</p>
 
     <h2>Contact</h2>
     <p><a href="https://github.com/m0dE/jev-mod/issues">github.com/m0dE/jev-mod/issues</a></p>
   </main>
-
   <footer>
     <div class="wrap">
-      <a href="./">Home</a>
-      <a href="privacy.html">Privacy policy</a>
+      <span>Jef Bot · AI moderation by Jev</span>
+      <span class="spacer"></span>
+      <a href="/docs/">Docs</a>
+      <a href="/pricing.html">Pricing</a>
+      <a href="/privacy.html">Privacy</a>
+      <a href="/terms.html">Terms</a>
       <a href="https://github.com/m0dE/jev-mod">GitHub</a>
+      <a href="https://github.com/m0dE/jev-mod/issues">Contact</a>
     </div>
   </footer>
 </body>

@@ -3,63 +3,96 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Privacy policy: JEV Mod</title>
-  <link rel="stylesheet" href="style.css">
+  <title>Privacy policy: Jef Bot</title>
+  <meta name="description" content="What Jef Bot collects, what it stores and for how long, who it shares data with, and how to get data deleted.">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/style.css">
 </head>
 <body>
+  <a class="skip" href="#main">Skip to content</a>
   <header class="top">
     <div class="wrap">
-      <a class="brand" href="./">JEV Mod</a>
-      <nav>
-        <a href="./">Home</a>
-        <a href="terms.html">Terms</a>
+      <a class="brand" href="/"><img src="/favicon.svg" alt="" width="28" height="28">Jef Bot</a>
+      <nav aria-label="Main">
+        <a href="/docs/">Docs</a>
+        <a href="/pricing.html">Pricing</a>
+        <a class="hide-sm" href="/docs/api.html">API</a>
+        <a class="hide-sm" href="/app/login">Sign in</a>
+        <a class="button" href="/app/login">Get started</a>
       </nav>
     </div>
   </header>
-
-  <main class="wrap doc">
+  <main id="main" class="wrap doc">
+    <!--
+      NOTE FOR THE OPERATOR: this policy was drafted from how the code behaves and has NOT been
+      reviewed by a lawyer. Have it reviewed before relying on it, and fill in the operator's legal
+      name, postal address and a privacy contact email (GDPR/UK GDPR/CCPA may require them).
+    -->
     <h1>Privacy policy</h1>
-    <p class="date">Effective October 7, 2026</p>
+    <p class="date">Effective October 8, 2026</p>
 
-    <p>JEV Mod is a Discord bot that moderates messages in the servers that add it. This policy explains what it reads, what it keeps, who it shares data with, and how to get data deleted.</p>
+    <p>Jef Bot is a hosted chat-moderation service for Discord servers, games and other apps. This policy explains what Jef Bot collects, what it keeps and for how long, who it shares data with, and how to get data deleted. "We" means the people who run Jef Bot; "customers" are the people who sign up and use it to moderate their communities; "members" and "players" are the people whose messages are moderated.</p>
 
-    <h2>What the bot reads</h2>
-    <p>In the channels it can see, JEV Mod reads every new or edited message from members who aren't exempt. The server owner, members with the Manage Messages permission, bots, and any roles or channels the server exempts are not checked. For each checked message it uses:</p>
+    <h2>Customers: your account</h2>
+    <ul>
+      <li><strong>Google sign-in.</strong> When you sign in with Google we receive and store your email address, your name and your Google account ID. We don't receive your Google password.</li>
+      <li><strong>Sessions.</strong> A signed-in browser holds a session cookie (<code>jef_session</code>, up to 30 days) and, during sign-in, a short-lived cookie (10 minutes) that protects the sign-in flow. They're needed for the dashboard to work; we don't use advertising or analytics cookies.</li>
+      <li><strong>Apps and settings.</strong> Your apps' names, custom rules, settings (such as a Discord mod log channel), webhook URLs and secrets, and linked Discord server IDs.</li>
+      <li><strong>API keys.</strong> Only a one-way hash of each key is stored, with its name, a short prefix and when it was last used.</li>
+      <li><strong>Usage.</strong> Per account and month: how many messages were moderated and how many AI checks were used.</li>
+      <li><strong>Billing.</strong> Payments are handled by <strong>Stripe</strong>. We store your Stripe customer ID, your subscription's ID, status and renewal date, and your plan. Card details go to Stripe directly; we never see or store them. Stripe processes payment data under its own <a href="https://stripe.com/privacy">privacy policy</a>.</li>
+    </ul>
+
+    <h2>Members and players: moderated messages</h2>
+    <p>Customers decide which chats Jef Bot moderates. For Discord, the Jef Bot bot reads new and edited messages in linked servers (except from bots, the server owner, people with the Manage Messages permission, and roles and channels the server exempts). For games and other apps, the customer's server sends messages to our API. For each message we use:</p>
     <ul>
       <li>the message text, and the message it replies to, if any;</li>
-      <li>the author's Discord user ID and username;</li>
-      <li>up to five earlier messages in the same channel, with their authors' usernames, so a message is judged in context;</li>
-      <li>the author's own messages from the last 30 minutes, to spot spam and patterns such as bullying.</li>
+      <li>the sender's user ID and display name (on Discord, their Discord user ID and username);</li>
+      <li>a few earlier messages in the same channel or room, with their senders' names, so the message is judged in context;</li>
+      <li>the sender's own messages from the last 30 minutes, to spot spam and patterns such as bullying.</li>
     </ul>
 
     <h2>What is sent to other companies</h2>
-    <p>To decide whether a message breaks the rules, the bot sends the information above, along with the server's own rules, to <strong>TypeSafe AI</strong>, which runs the Jev model. If the bot's operator configures Anthropic's Claude instead, it is sent to <strong>Anthropic</strong>. These providers process it under their own terms and privacy policies. We don't sell data or share it with anyone else, and we don't use it for advertising.</p>
-    <p>Messages caught by the built-in spam and scam checks are not sent. With Jev, very short or simple messages (such as "gg" or emoji) and text judged clean within the last hour are not sent either.</p>
+    <p>To decide whether a message breaks the rules, Jef Bot sends the information above, along with the community's rules, to <strong>TypeSafe AI</strong>, which runs the Jev model. If the service is configured to use Anthropic's Claude instead, it is sent to <strong>Anthropic</strong>. These providers process it under their own terms and privacy policies.</p>
+    <p>Not every message is sent: messages caught by the built-in spam, scam and keyword checks, very short or simple messages (such as "gg" or emoji), messages judged clean within the last hour, and messages checked after a customer's monthly AI allowance is used up are handled without the AI provider.</p>
+    <p>If a customer sets up a webhook, details of each moderation action, including the full message text, are sent to the address the customer chose. We don't sell data, share it with anyone else, or use it for advertising.</p>
 
     <h2>What is kept, and for how long</h2>
-    <table>
-      <tr><th>Data</th><th>What it contains</th><th>How long</th></tr>
-      <tr><td>Offense records</td><td>Server ID, member's user ID, time, the rule broken, the reason, an excerpt of the message (up to 200 characters), and which staff member issued it, if manual</td><td>While the offense counts (24 hours, or 30 days for severe ones), then 30 more days, then deleted. Staff can delete them sooner with <code>/pardon</code>.</td></tr>
-      <tr><td>Server settings</td><td>The server's custom rules and its mod log channel</td><td>Until changed, or until the bot is removed from the server</td></tr>
-      <tr><td>Recent messages</td><td>Each member's messages from the last 30 minutes (up to 15, 300 characters each)</td><td>Memory only, never saved to disk; discarded after 30 minutes or when the bot restarts</td></tr>
-      <tr><td>Clean-message cache</td><td>The text of messages judged clean, with no user information</td><td>Memory only, for up to one hour</td></tr>
-      <tr><td>Operational logs</td><td>Which member was acted on, where, for what kind of rule, and the punishment. Message text is not logged.</td><td>Kept on the bot's server for troubleshooting</td></tr>
-      <tr><td>Usage counter</td><td>The number of AI tokens used today; no personal data</td><td>Reset daily</td></tr>
-    </table>
-    <p>When JEV Mod is removed from a server, that server's offense records and settings are deleted.</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th scope="col">Data</th><th scope="col">What it contains</th><th scope="col">How long</th></tr></thead>
+        <tbody>
+          <tr><td>Clean messages</td><td>Messages that don't break a rule</td><td><strong>Not stored.</strong> Only held in memory briefly (see below).</td></tr>
+          <tr><td>Moderation history</td><td>For flagged messages and "watching" notes: the app, user ID and name, channel or room, message ID, an excerpt of the message (up to 500 characters), the rule broken, the reason and the action taken; also manual warnings and pardons and who issued them</td><td>The customer's plan's history period: 7 days (Free), 30 days (Starter) or 90 days (Pro), then deleted</td></tr>
+          <tr><td>Strikes</td><td>User ID, time, rule broken, reason, an excerpt of the message (up to 200 characters), and who issued it if manual</td><td>While the strike counts (24 hours, or 30 days for severe ones), then 30 more days, then deleted. Staff can delete them sooner with a pardon.</td></tr>
+          <tr><td>Recent messages</td><td>Each user's messages from the last 30 minutes (up to 15), and the last 5 messages per channel or room</td><td>Memory only, never written to disk; discarded as they age out or when the service restarts</td></tr>
+          <tr><td>Clean-message cache</td><td>The text of messages judged clean, with no user information</td><td>Memory only, up to one hour</td></tr>
+          <tr><td>Account, apps, keys, usage, billing</td><td>As described above</td><td>Until the account or app is deleted</td></tr>
+          <tr><td>Operational logs</td><td>Which user was acted on, where, for what kind of rule, and the punishment; sign-in and billing events. Message text is not logged.</td><td>Kept on our servers for troubleshooting</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <ul>
+      <li><strong>Deleting an app</strong> deletes its rules, keys, strikes and history.</li>
+      <li><strong>Removing Jef Bot from a Discord server</strong> deletes that server's strikes and history and unlinks it from its app (if it happens while the service is offline, when it next starts).</li>
+      <li>On Discord, when Jef Bot acts it DMs the member the reason and punishment, posts a short notice in the channel that deletes itself after 15 seconds, and, if the server set a mod log channel, posts the details there including the message text (up to 1,000 characters). Those mod log posts are ordinary Discord messages that the server's staff control.</li>
+    </ul>
 
-    <h2>What is posted in your server</h2>
-    <p>When the bot acts, it DMs the member the reason and their punishment, posts a short notice in the channel that deletes itself after 15 seconds, and, if the server set a mod log channel, posts the details there, including the message text (up to 1,000 characters). Those mod log posts are ordinary Discord messages that the server's staff control.</p>
+    <h2>Customers' responsibilities</h2>
+    <p>Customers decide what to moderate and are responsible for telling their members or players that their chat is moderated by an automated service, and for having a lawful basis to do so. For the messages they send us, we act on their behalf.</p>
 
     <h2>Your choices</h2>
     <ul>
-      <li>Server staff can see a member's records with <code>/strikes</code> and delete them with <code>/pardon</code>.</li>
-      <li>Server admins can remove the bot at any time, which deletes the server's data.</li>
-      <li>Anyone can ask for their data to be deleted, or ask what's held about them, by <a href="https://github.com/m0dE/jev-mod/issues">opening an issue</a>. Please don't post personal details there. Say you'd like to be contacted privately.</li>
+      <li>Customers can see, export through the API, and delete their apps, rules, strikes and history at any time from the dashboard or the API.</li>
+      <li>Discord server staff can see a member's records with <code>/strikes</code> and delete them with <code>/pardon</code>, and remove the bot at any time.</li>
+      <li>Members and players should first contact the community that moderates them. You can also ask us what we hold about you, or to delete it, or ask us to delete your customer account, by <a href="https://github.com/m0dE/jev-mod/issues">opening an issue</a>. Please don't post personal details there; say you'd like to be contacted privately.</li>
     </ul>
 
+    <h2>Security</h2>
+    <p>Connections to the service are encrypted (HTTPS). API keys and session tokens are stored only as hashes. Webhooks are signed so customers can check they came from us.</p>
+
     <h2>Children</h2>
-    <p>JEV Mod is only for use on Discord, which requires users to be at least 13 (or older where local law requires it).</p>
+    <p>Jef Bot is a tool for community operators, and customer accounts are for adults. Discord requires users to be at least 13 (or older where local law requires it). Game developers who moderate chat for younger players are responsible for any consent their local law requires.</p>
 
     <h2>Changes</h2>
     <p>If this policy changes, the updated version will be posted here with a new effective date.</p>
@@ -67,12 +100,16 @@
     <h2>Contact</h2>
     <p>Questions about this policy: <a href="https://github.com/m0dE/jev-mod/issues">github.com/m0dE/jev-mod/issues</a>.</p>
   </main>
-
   <footer>
     <div class="wrap">
-      <a href="./">Home</a>
-      <a href="terms.html">Terms of service</a>
+      <span>Jef Bot · AI moderation by Jev</span>
+      <span class="spacer"></span>
+      <a href="/docs/">Docs</a>
+      <a href="/pricing.html">Pricing</a>
+      <a href="/privacy.html">Privacy</a>
+      <a href="/terms.html">Terms</a>
       <a href="https://github.com/m0dE/jev-mod">GitHub</a>
+      <a href="https://github.com/m0dE/jev-mod/issues">Contact</a>
     </div>
   </footer>
 </body>

@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Rules and punishments: Jef Bot</title>
+  <meta name="description" content="What Jef Bot moderates, how it decides (spam, keyword and scam checks, then Jev), severities, the punishment ladder and cooldowns, griefing and bullying patterns, custom rules and AI quota behaviour.">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <header class="top">
+    <div class="wrap">
+      <a class="brand" href="/"><img src="/favicon.svg" alt="" width="28" height="28">Jef Bot</a>
+      <nav aria-label="Main">
+        <a href="/docs/" aria-current="page">Docs</a>
+        <a href="/pricing.html">Pricing</a>
+        <a class="hide-sm" href="/docs/api.html">API</a>
+        <a class="hide-sm" href="/app/login">Sign in</a>
+        <a class="button" href="/app/login">Get started</a>
+      </nav>
+    </div>
+  </header>
+  <div class="wrap docs-layout">
+    <nav class="sidebar" aria-label="Documentation">
+      <h2>Getting started</h2>
+      <ul>
+        <li><a href="/docs/">Overview</a></li>
+        <li><a href="/docs/quickstart-game.html">Game chat quickstart</a></li>
+        <li><a href="/docs/quickstart-discord.html">Discord quickstart</a></li>
+        <li><a href="/docs/agents.html">Setup by AI agents</a></li>
+      </ul>
+      <h2>Reference</h2>
+      <ul>
+        <li><a href="/docs/api.html">API reference</a></li>
+        <li><a href="/docs/webhooks.html">Webhooks</a></li>
+        <li><a href="/docs/rules.html" aria-current="page">Rules and punishments</a></li>
+        <li><a href="/openapi.json">OpenAPI spec</a></li>
+        <li><a href="/llms.txt">llms.txt</a></li>
+      </ul>
+      <h2>Account</h2>
+      <ul>
+        <li><a href="/pricing.html">Pricing</a></li>
+        <li><a href="/app">Dashboard</a></li>
+      </ul>
+    </nav>
+    <main id="main" class="content">
+      <h1>Rules and punishments</h1>
+      <p class="lead">What Jef Bot moderates, how it decides, and how punishments escalate. The same rules and ladder apply to Discord servers and API apps.</p>
+
+      <div class="toc">
+        <strong>On this page</strong>
+        <ul>
+          <li><a href="#builtin">Built-in rules</a> and <a href="#categories">categories</a></li>
+          <li><a href="#decide">How a message is judged</a></li>
+          <li><a href="#severity">Severities</a>, <a href="#ladder">the ladder</a>, <a href="#cooldown">cooldowns</a></li>
+          <li><a href="#patterns">Griefing and bullying need a pattern</a></li>
+          <li><a href="#spam">Spam and scams</a></li>
+          <li><a href="#custom">Custom rules</a></li>
+          <li><a href="#quota">When AI checks run out</a></li>
+        </ul>
+      </div>
+
+      <h2 id="builtin">Built-in rules</h2>
+      <p>Every app gets these rules. The AI judges messages against them, plus your <a href="#custom">custom rules</a>:</p>
+      <ol>
+        <li>Be respectful. No insults, name-calling, or personal attacks.</li>
+        <li>No toxicity: no harassment, hate speech, slurs, threats, or telling people to harm themselves.</li>
+        <li>No griefing: don't organise or brag about wrecking other players' builds, games, or experience; no raiding, spam-pinging, or flooding chat.</li>
+        <li>Keep it positive. Don't trash-talk the server, its members, or its staff, or try to stir up drama.</li>
+        <li>No rudeness: no hostile, demeaning, or deliberately inflammatory messages.</li>
+        <li>No spam or scams: no advertising, repeated messages, fake giveaways, or phishing links.</li>
+      </ol>
+      <p>Jev is told to leave friendly banter, gaming trash talk, normal venting and civil disagreement alone, and to let a message through when it's unsure.</p>
+
+      <h3 id="categories">Categories</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th scope="col"><code>category</code></th><th scope="col">Covers</th></tr></thead>
+          <tbody>
+            <tr><td><code>rudeness</code></td><td>Insults, name-calling, hostile or demeaning messages</td></tr>
+            <tr><td><code>negativity</code></td><td>Trashing the community, its members or staff, stirring up drama (always low severity)</td></tr>
+            <tr><td><code>toxicity</code></td><td>Harassment, telling someone to harm themselves</td></tr>
+            <tr><td><code>harassment</code></td><td>Bullying: picking on the same person over several messages (needs a <a href="#patterns">pattern</a>)</td></tr>
+            <tr><td><code>griefing</code></td><td>Organising or bragging about ruining others' play, raids, mass-mentions (needs a pattern, except mass-mentions)</td></tr>
+            <tr><td><code>hate</code></td><td>Hate speech and slurs</td></tr>
+            <tr><td><code>threat</code></td><td>Threats against someone</td></tr>
+            <tr><td><code>spam</code></td><td>Flooding, repeated messages, advertising</td></tr>
+            <tr><td><code>scam</code></td><td>Fake giveaways, phishing and look-alike links, account trading, "I accidentally reported you"</td></tr>
+            <tr><td><code>custom</code></td><td>One of your own rules</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="decide">How a message is judged</h2>
+      <ol>
+        <li><strong>Spam checks</strong> look at the sender's recent messages: flooding and repeating the same message. Free.</li>
+        <li><strong>Keyword and scam checks</strong> catch the obvious cases: scam patterns and fake Discord/Steam links, threats, "kys", direct insults ("you're an idiot"), hostile language, "let's grief their base", "this server is trash", and on Discord, mass-mentions. They see through l33t-speak and s.p.a.c.e.d letters. Free.</li>
+        <li><strong>Trivial messages skip the AI:</strong> emoji only, "gg", "lol", "ok", "ty", bot commands like <code>!rank</code>. So does text already judged clean in the last hour.</li>
+        <li><strong>Jev</strong> judges everything else (one <a href="/pricing.html#ai-checks">AI check</a>). It reads the message, what it replies to, and the last few messages in the room. Messages are bundled for up to about 2 seconds into a quick "could this break a rule?" check; only the possible problems get the full check. Jev only flags a message when it's confident (at least 90% sure for the built-in rules, 70% for your custom rules).</li>
+      </ol>
+      <p>The result's <code>source</code> says which step decided: <code>spam</code>, <code>rules</code>, <code>jev</code> (or <code>ai</code> on self-hosted servers using Claude).</p>
+
+      <h2 id="severity">Severities</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th scope="col">Severity</th><th scope="col">For example</th><th scope="col">First offense</th><th scope="col">Counts for</th></tr></thead>
+          <tbody>
+            <tr><td><code>low</code></td><td>Subtle rudeness, negativity, flooding chat, advertising</td><td>2 minute mute</td><td>24 hours</td></tr>
+            <tr><td><code>medium</code></td><td>Clear insults, griefing, bullying, repeated spam, possible scams</td><td>10 minute mute</td><td>24 hours</td></tr>
+            <tr><td><code>high</code></td><td>Threats, slurs, self-harm incitement, scams</td><td>24 hour mute + final warning</td><td>30 days</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="ladder">The punishment ladder</h2>
+      <p>An offense starts at its severity's step and moves one step up for every strike the user still has active. Past the last mute is a ban.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th scope="col"><code>level</code></th><th scope="col"><code>label</code></th><th scope="col"><code>durationMs</code></th><th scope="col"><code>message</code> shown to the user</th></tr></thead>
+          <tbody>
+            <tr><td>0</td><td>2 minute mute</td><td>120000</td><td>Please keep it respectful. You have been muted for 2 minutes.</td></tr>
+            <tr><td>1</td><td>10 minute mute</td><td>600000</td><td>That crossed the line. You have been muted for 10 minutes.</td></tr>
+            <tr><td>2</td><td>1 hour mute</td><td>3600000</td><td>You have broken the rules several times recently. You have been muted for 1 hour.</td></tr>
+            <tr><td>3</td><td>6 hour mute</td><td>21600000</td><td>You keep breaking the rules. You have been muted for 6 hours.</td></tr>
+            <tr><td>4</td><td>FINAL warning + 24 hour mute</td><td>86400000</td><td>This is your FINAL warning. You have been muted for 24 hours. One more offense and you will be banned.</td></tr>
+            <tr><td>5</td><td>Ban</td><td><code>null</code></td><td>You have been banned for repeatedly breaking the rules.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>What the next offense brings, by active strikes:</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th scope="col">Active strikes</th><th scope="col">Low</th><th scope="col">Medium</th><th scope="col">High</th></tr></thead>
+          <tbody>
+            <tr><td>0</td><td>2 min</td><td>10 min</td><td>24 h, final warning</td></tr>
+            <tr><td>1</td><td>10 min</td><td>1 h</td><td>Ban</td></tr>
+            <tr><td>2</td><td>1 h</td><td>6 h</td><td>Ban</td></tr>
+            <tr><td>3</td><td>6 h</td><td>24 h, final warning</td><td>Ban</td></tr>
+            <tr><td>4</td><td>24 h, final warning</td><td>Ban</td><td>Ban</td></tr>
+            <tr><td>5 or more</td><td>Ban</td><td>Ban</td><td>Ban</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Manual warnings (<code>/warn</code>, <code>POST …/warn</code>) use the same ladder and add a strike too. If a user breaks the rules again within 10 seconds of a punishment (typically a flood), the new message is removed (<code>action.type: "delete"</code>) but they aren't punished twice.</p>
+
+      <h3 id="cooldown">Cooldowns</h3>
+      <p>Each strike counts on its own for 24 hours (30 days for high severity), then stops counting. A day without trouble puts most people back at the bottom of the ladder. Staff can remove strikes early with a pardon. Expired strike records are deleted 30 days after they stop counting.</p>
+
+      <h2 id="patterns">Griefing and bullying need a pattern</h2>
+      <p>One message that looks like griefing or bullying could be a joke between friends, so it's only noted: the result has <code>"watch": "griefing"</code> or <code>"watch": "harassment"</code>, a <code>watch</code> event goes into history, and on Discord a "Watching" note goes to the mod log. No strike, no punishment.</p>
+      <p>When a later message from the same person fits the same pattern within 30 minutes, Jev looks at their recent messages together (up to 15); that check uses one more AI check. If they show a real pattern (a plan to wreck someone's base, repeatedly picking on the same person), Jef Bot acts at medium severity (high if the message itself was severe). If the message also broke another rule, such as one of your custom rules, that rule still applies straight away.</p>
+      <p>Clear insults, threats and slurs don't need a pattern; they're acted on immediately.</p>
+
+      <h2 id="spam">Spam and scams</h2>
+      <ul>
+        <li><strong>Flooding:</strong> 6 messages within 10 seconds. Low severity. The earlier messages of the burst are in <code>deleteMessages</code>.</li>
+        <li><strong>Repeating:</strong> the same message 3 times within a minute (5 times for short ones under 10 characters without a link, like "gg"). Medium. The earlier copies are in <code>deleteMessages</code>, from any room.</li>
+        <li><strong>Advertising</strong> (judged by Jev): low.</li>
+        <li><strong>Scams:</strong> fake Nitro/Steam/crypto giveaways, look-alike Discord or Steam links, "I accidentally reported you", asking for logins, selling accounts. High (a 24 hour mute and final warning), and the sender's other recent scam messages are in <code>deleteMessages</code>. Messages Jev thinks are <em>likely</em> scams, but isn't sure about, are "Possible scam" at medium. Hacked accounts are the usual culprits, so a scam isn't an instant ban. Messages warning <em>about</em> a scam are fine.</li>
+      </ul>
+
+      <h2 id="custom">Custom rules</h2>
+      <p>Add rules for your own community in plain words, each with a severity (default <code>low</code>). In the dashboard, with <code>/rule add</code> on Discord, or <code>POST /v1/apps/{appId}/rules</code>. Up to 300 characters each; 3, 15 or 50 per app by plan.</p>
+      <div class="example">
+        <div><strong>Rule:</strong> No asking for old Braains, or talking about how you miss old Braains <span class="badge">low</span></div>
+        <div class="msg"><span class="tag act">REMOVED</span>i miss the old braains</div>
+        <div class="msg"><span class="tag act">REMOVED</span>can the devs add an option to play old braains?</div>
+        <div class="msg"><span class="tag ok">FINE</span>what is the oldest map in braains?</div>
+      </div>
+      <ul>
+        <li>A message that breaks one gets <code>category: "custom"</code> and <code>reason: "Server rule: &lt;your rule&gt;"</code>, with the rule's severity, and is acted on immediately (no pattern needed).</li>
+        <li>Describe the behaviour, not keywords: "No sharing personal details like addresses or phone numbers" works better than a word list.</li>
+        <li>Custom rules are judged by the AI. They don't apply when the AI is skipped: trivial messages, AI checks used up, or a self-hosted server without an AI key.</li>
+        <li>If an app has more rules than the plan allows (after a downgrade), only the oldest ones up to the limit apply.</li>
+      </ul>
+
+      <h2 id="quota">When AI checks run out</h2>
+      <p>Each plan includes a number of AI checks per calendar month (UTC), shared by all apps on the account: 2,000 on Free, 30,000 on Starter, 200,000 on Pro. At most a tenth of that (200, 3,000 or 20,000) can be used in one UTC day, so a spam wave or a busy day can't use up the whole month. Once the day's or the month's checks are used up:</p>
+      <ul>
+        <li>moderation carries on with the free spam, scam and keyword checks;</li>
+        <li>messages that would have gone to the AI are allowed unless those checks catch them, and their results include <code>"aiSkipped": "quota"</code>;</li>
+        <li>custom rules and subtle rudeness aren't caught until the next UTC day (daily share) or the 1st of next month (monthly allowance), or until you upgrade (the new limits apply straight away).</li>
+      </ul>
+      <p>Check usage in the dashboard, with <code>/jef status</code> on Discord, or <code>GET /v1/account</code>.</p>
+
+      <nav class="pager" aria-label="More pages">
+        <a href="/docs/webhooks.html">← Webhooks</a>
+        <a href="/docs/">Overview →</a>
+      </nav>
+    </main>
+  </div>
+  <footer>
+    <div class="wrap">
+      <span>Jef Bot · AI moderation by Jev</span>
+      <span class="spacer"></span>
+      <a href="/docs/">Docs</a>
+      <a href="/pricing.html">Pricing</a>
+      <a href="/privacy.html">Privacy</a>
+      <a href="/terms.html">Terms</a>
+      <a href="https://github.com/m0dE/jev-mod">GitHub</a>
+      <a href="https://github.com/m0dE/jev-mod/issues">Contact</a>
+    </div>
+  </footer>
+  <script src="/docs/docs.js" defer></script>
+</body>
+</html>
