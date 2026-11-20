@@ -171,6 +171,10 @@ test('servers without /modlog log to a staff channel found by name', async () =>
   assert.equal((await resolveModLog(g, { settings: {} }))?.id, '2');
   assert.equal((await resolveModLog(g, { settings: { modLogChannelId: '3' } }))?.id, '3', 'a configured channel wins');
   assert.equal(findLogChannel(fakeGuild('x', [general, textChannel('9', 'mod-log', false)])), null, 'only channels it can post in');
+  // m0dE's games style names.
+  assert.equal(findLogChannel(fakeGuild('y', [textChannel('5', '🍻ㅣꓖeneral'), textChannel('6', '📜ㅣdc-logs')]))?.id, '6');
+  assert.equal(findLogChannel(fakeGuild('z', [textChannel('7', '🔒・mod-log')]))?.id, '7');
+  assert.equal(findLogChannel(fakeGuild('w', [textChannel('8', 'dev-logs-archive')])), null);
 });
 
 test('startup health check: linked servers report channels, log channel and missing permissions; unlinked get a notice once', async () => {

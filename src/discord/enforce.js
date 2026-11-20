@@ -112,7 +112,10 @@ const LOG_CHANNEL_NAMES = [
   /^modbot[-_ ]?logs?$/,
   /^automod[-_ ]?logs?$/,
   /^mod(?:eration)?[-_ ]?actions?$/,
+  /^(?:dc|discord)[-_ ]?logs?$/,
 ];
+// "📜ㅣdc-logs" and "#・mod-log" count as dc-logs and mod-log: drop leading emoji and separators.
+const plainName = (name) => String(name).toLowerCase().replace(/^.*[ㅣ|│・•»]\s*/u, '').replace(/^[^a-z0-9]+/, '');
 const LOG_PERMS = [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.EmbedLinks];
 
 /** A text channel that looks like a staff log and that the bot can post embeds in, or null. */
@@ -121,7 +124,7 @@ export function findLogChannel(guild) {
   const usable = [...(guild.channels?.cache?.values() ?? [])].filter((c) => c.type === ChannelType.GuildText
     && (!me || c.permissionsFor?.(me)?.has(LOG_PERMS)));
   for (const re of LOG_CHANNEL_NAMES) {
-    const found = usable.find((c) => re.test(String(c.name).toLowerCase()));
+    const found = usable.find((c) => re.test(plainName(c.name)));
     if (found) return found;
   }
   return null;
