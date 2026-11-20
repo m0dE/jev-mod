@@ -22,14 +22,17 @@ export function warningEmbed({ action, reason, guildName }) {
 /**
  * Carry out `result` (from moderator.moderate) for `message`. Every Discord call is
  * best-effort: a missing permission on one step must not stop the others.
- * Returns the outcome label, noting anything Discord refused.
+ * Returns { outcome, deleted }: the outcome label (noting anything Discord refused) and
+ * whether the message was really deleted ({ ok: true } or { ok: false, reason }).
  */
 export async function enforce({ app, message, result, log = console }) {
   const { guild, member, author, channel } = message;
   const action = result.action ?? { type: 'delete' };
   const reason = result.reason || result.category;
 
-  await message.delete().catch((e) => log.warn(`[enforce] could not delete message: ${e.message}`));
+  // Only a delete Discord confirmed counts; the error says why not ("Unknown Message" when it
+  // was already gone, "Missing Permissions" without Manage Messages).
+  const deleted = await deleteMessage(message, log);
 
   let outcome = 'Message removed';
   if (action.type === 'mute' || action.type === 'ban') {
@@ -54,6 +57,7 @@ export async function enforce({ app, message, result, log = console }) {
         { name: 'Active offenses', value: `${result.strikes}`, inline: true },
         { name: 'Category', value: `${result.category} / ${result.severity} (${result.source})`, inline: true },
         { name: 'DM delivered', value: dmed ? 'yes' : 'no', inline: true },
+        { name: 'Message deleted', value: deletedLabel(deleted), inline: true },
         { name: 'Reason', value: result.reason || '—' },
         { name: 'Message', value: (message.content || '—').slice(0, 1000) },
       )
@@ -61,8 +65,23 @@ export async function enforce({ app, message, result, log = console }) {
   }
 
   if (result.deleteMessages?.length) await deleteMessages(guild, result.deleteMessages);
-  return outcome;
+  return { outcome, deleted };
 }
+
+/** Delete `message`: { ok: true } once Discord confirms, else { ok: false, reason }. */
+export async function deleteMessage(message, log = console) {
+  try {
+    await message.delete();
+    return { ok: true };
+  } catch (e) {
+    const reason = e?.message || String(e);
+    log.warn(`[enforce] could not delete message ${message.id ?? ''}: ${reason}`);
+    return { ok: false, reason };
+  }
+}
+
+/** "yes", or "no (<reason>)", for mod-log embeds and log lines. */
+export const deletedLabel = (deleted) => (deleted?.ok ? 'yes' : `no (${deleted?.reason ?? 'unknown'})`);
 
 /** Mute or ban per `action` ({ type: 'mute' | 'ban', label, durationMs }). Returns the label, noting failures. */
 export async function punish({ guild, member, userId, action, reason, log = console }) {
@@ -99,6 +118,7 @@ export async function logWatch({ app, message, category }) {
     .setDescription(`Possible ${category}. No action yet; it needs a pattern across their messages.`)
     .addFields(
       { name: 'Channel', value: `${message.channel}`, inline: true },
+      { name: 'Message deleted', value: deletedLabel({ ok: false, reason: 'watch only, not deleted' }), inline: true },
       { name: 'Message', value: (message.content || '—').slice(0, 1000) },
     )
     .setTimestamp());

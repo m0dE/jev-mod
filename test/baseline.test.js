@@ -248,3 +248,45 @@ test('JEF_TEST_USER_IDS: the owner is moderated and a timeout is attempted, with
     assert.ok(lines.some((l) => /5 minute mute \(mute failed\)/.test(l)));
   } finally { config.testUserIds = saved; }
 });
+
+// --- "Message deleted" on mod-log entries ---
+
+const { enforce } = await import('../src/discord/enforce.js');
+
+function enforceTarget({ deleteError = null } = {}) {
+  const modlog = textChannel('99', 'mod-log');
+  const guild = fakeGuild('g', [modlog]);
+  guild.members.ban = async () => {};
+  const message = {
+    id: 'm1', content: 'you are all braindead losers', guild,
+    author: { id: 'u1', tag: 'kid', toString: () => '<@u1>', send: async () => {} },
+    member: { moderatable: true, timeout: async () => {} },
+    channel: { toString: () => '<#c1>', send: async () => ({ delete: async () => {} }) },
+    delete: async () => { if (deleteError) throw new Error(deleteError); },
+  };
+  return { modlog, message };
+}
+const result = { allow: false, category: 'rudeness', severity: 'medium', reason: 'Insult', source: 'rules', strikes: 1,
+  action: { type: 'mute', label: '5 minute mute', durationMs: 5 * MIN, message: 'Muted', level: 0 } };
+const fieldsOf = (sent) => Object.fromEntries(sent.embeds[0].toJSON().fields.map((f) => [f.name, f.value]));
+
+test('mod-log embed says "Message deleted: yes" only when Discord confirmed the delete', async () => {
+  const { modlog, message } = enforceTarget();
+  const out = await enforce({ app: { settings: {} }, message, result, log: quiet });
+  assert.deepEqual(out.deleted, { ok: true });
+  const fields = fieldsOf(modlog.sent[0]);
+  assert.equal(fields['Message deleted'], 'yes');
+  const names = modlog.sent[0].embeds[0].toJSON().fields.map((f) => f.name);
+  assert.equal(names.indexOf('Message deleted'), names.indexOf('DM delivered') + 1, 'next to DM delivered');
+});
+
+test('a failed delete is reported with Discord\'s reason', async () => {
+  for (const reason of ['Unknown Message', 'Missing Permissions']) {
+    const { modlog, message } = enforceTarget({ deleteError: reason });
+    const warned = [];
+    const out = await enforce({ app: { settings: {} }, message, result, log: { ...quiet, warn: (l) => warned.push(l) } });
+    assert.deepEqual(out.deleted, { ok: false, reason });
+    assert.equal(fieldsOf(modlog.sent[0])['Message deleted'], `no (${reason})`);
+    assert.ok(warned.some((l) => l.includes(reason)));
+  }
+});

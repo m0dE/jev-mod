@@ -5,7 +5,7 @@
 import { Client, GatewayIntentBits, Partials, Events, PermissionFlagsBits, MessageFlags, ChannelType, EmbedBuilder } from 'discord.js';
 import { config } from '../config.js';
 import { migrateLegacy } from '../migrate.js';
-import { enforce, logWatch, resolveModLog, findLogChannel, modLogChannelId } from './enforce.js';
+import { enforce, logWatch, resolveModLog, findLogChannel, modLogChannelId, deletedLabel } from './enforce.js';
 import { handleCommand } from './commands.js';
 
 // How long to wait after joining a server before saying it needs linking: with "Add to
@@ -99,8 +99,8 @@ export function createDiscordHandlers({ db, moderator, classifier, log = console
       }
       if (result.allow) return;
 
-      const outcome = await enforce({ app, message, result, log });
-      log.log(`[mod] ${message.guild.name} #${message.channel.name} ${message.author.tag}: ${result.category}/${result.severity} [${result.source}: ${result.reason}] → ${outcome} (${result.strikes} active): "${message.content.slice(0, 80).replace(/\s+/g, ' ')}"`);
+      const { outcome, deleted } = await enforce({ app, message, result, log });
+      log.log(`[mod] ${message.guild.name} #${message.channel.name} ${message.author.tag}: ${result.category}/${result.severity} [${result.source}: ${result.reason}] → ${outcome}, message deleted: ${deletedLabel(deleted)} (${result.strikes} active): "${message.content.slice(0, 80).replace(/\s+/g, ' ')}"`);
     } catch (err) {
       log.error('[mod] failed to moderate message', err);
     } finally {
