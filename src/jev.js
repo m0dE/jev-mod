@@ -36,6 +36,57 @@ const AD_QUESTION = {
   criteria: { true: 'A server invite or sales pitch.', false: 'Normal conversation, including sharing videos, clips or links while chatting.' },
 };
 
+/**
+ * The built-in baseline: always asked, for every app, on top of its own rules. Each is a
+ * separate yes/no question because Jev separates them far better that way than as one
+ * option of the category choice (an insult like "you guys are honestly pathetic" scores
+ * 0.82 as a category but 0.94 here). Tuned on real Braains.io chat (Nov 2026) so player
+ * trash talk ("gg ez noobs", "ur trash at this game bro") stays below the thresholds.
+ * `threshold` names the config setting each one uses.
+ */
+export const BASELINE = {
+  threat: {
+    category: 'threat', severity: 'high', reason: 'Threats or telling someone to harm themselves', threshold: 'jevBaselineThreshold',
+    question: {
+      type: 'noul',
+      instructions: 'Does message_to_judge threaten to hurt, find or dox anyone, or say that anyone (a member, a developer, staff, anyone) should kill or hurt themselves or die? In-game violence ("I killed him", "I got him now") and figures of speech ("this boss is killing me") are not threats.',
+      criteria: { true: 'A threat, or encouraging self-harm or death.', false: 'No threat.' },
+    },
+  },
+  hate: {
+    category: 'hate', severity: 'high', reason: 'Slurs or hate speech', threshold: 'jevBaselineThreshold',
+    question: {
+      type: 'noul',
+      instructions: 'Does message_to_judge contain a slur or a hateful attack on people for their race, ethnicity, religion, sexuality, gender or disability?',
+      criteria: { true: 'A slur or hate speech.', false: 'No slur or hate.' },
+    },
+  },
+  insult: {
+    category: 'rudeness', severity: 'low', reason: 'Insulting or harassing other members', threshold: 'jevInsultThreshold',
+    question: {
+      type: 'noul',
+      instructions: "Does message_to_judge insult, demean, mock or name-call a person or group in the chat (e.g. 'you are all idiots', 'nobody cares about you', 'ur mom' jokes aimed at someone, telling someone to shut up)? NOT insults: playful banter or gaming trash talk between players ('gg ez', 'ur trash at this game lol', 'noob'), joking with friends, self-deprecation, or swearing not aimed at anyone. When unsure, answer false.",
+      criteria: { true: 'A real insult or put-down aimed at someone.', false: 'Not aimed at anyone, or clearly playful.' },
+    },
+  },
+  drama: {
+    category: 'negativity', severity: 'low', reason: 'Toxic negativity or drama baiting', threshold: 'jevBaselineThreshold',
+    question: {
+      type: 'noul',
+      instructions: "Is message_to_judge toxic negativity or drama baiting aimed at the game, server, community, developers or staff: mocking or trashing them with no constructive point (e.g. 'dead game', 'devs ruined it, nice work', 'this server is a joke', 'everyone here is cringe'), or trying to stir up a fight? NOT this: trash talk between players about skill ('gg ez', 'ur trash at this game', 'noob'), civil criticism or feedback, bug reports, reminiscing, complaints about lag or difficulty, or neutral observations. When unsure, answer false.",
+      criteria: { true: 'Toxic negativity or drama baiting about the game or community.', false: 'Normal chat, player trash talk or civil criticism.' },
+    },
+  },
+  griefing: {
+    category: 'griefing', severity: 'medium', reason: 'Griefing or raiding', threshold: 'jevBaselineThreshold',
+    question: {
+      type: 'noul',
+      instructions: "Does message_to_judge organise, encourage or brag about griefing: deliberately ruining other players' games or builds, raiding the server, mass-pinging, or harassing new players? Normal competitive play, PvP kills and jokes about winning are not griefing.",
+      criteria: { true: 'Griefing or raiding.', false: 'Not griefing.' },
+    },
+  },
+};
+
 const PATTERN_QUESTIONS = {
   griefing: {
     instructions: "Taken together, are the author's messages actually griefing: organising, carrying out or bragging about ruining other players' builds, games or fun, raiding, or flooding chat?",
@@ -153,12 +204,13 @@ export function jevRequest(content, { rules = null, customRules = [], authorName
       },
       scam: SCAM_QUESTION,
       advertising: AD_QUESTION,
+      ...Object.fromEntries(Object.entries(BASELINE).map(([k, b]) => [`baseline_${k}`, b.question])),
       ...Object.fromEntries(customRules.map((r) => [`custom_${r.id}`, customQuestion(r)])),
     },
   };
 }
 
-const GATE_SUMMARY = 'A message may break the rules if it is rude, insulting, demeaning, toxic, threatening, hateful, griefing (planning to ruin others\' games), spam, advertising, or a scam or phishing attempt. Friendly banter, gaming trash talk, venting and normal chat are fine.';
+const GATE_SUMMARY = 'A message may break the rules if it is rude, insulting, demeaning, toxic, threatening (including saying someone should kill themselves), hateful, mocking or trashing the game, server, developers or community, drama baiting, griefing (planning to ruin others\' games), spam, advertising, or a scam or phishing attempt. Friendly banter, gaming trash talk, venting and normal chat are fine.';
 
 /**
  * The quick first check: one request for many messages, one yes/no each.
@@ -241,6 +293,14 @@ export function jevVerdict(answers, threshold = config.jevThreshold, customRules
     }
   }
 
+  // Ties go to the server's own rule (above), whose reason staff recognise.
+  for (const [key, b] of Object.entries(BASELINE)) {
+    const p = answers?.[`baseline_${key}`]?.noul ?? 0;
+    if (p >= config[b.threshold]) {
+      // A dedicated yes/no answer is specific enough to act on without waiting for a pattern.
+      found.push({ category: b.category, severity: b.severity, reason: b.reason, standalone: true, baseline: key, confidence: p });
+    }
+  }
   const category = answers?.category?.choice;
   const p = answers?.category?.probabilities?.[category] ?? 0;
   if (category && category !== 'none' && p >= threshold) {

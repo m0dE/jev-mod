@@ -38,6 +38,8 @@ export function isTrivial(content) {
   return /^[!?$.;>-]\w+(\s+\S+){0,2}$/.test(text);
 }
 
+// Scores at or above this on a message that was let through get a log line.
+const NEAR_MISS = 0.5;
 const CACHE_MS = 60 * 60_000;
 const CACHE_MAX = 5000;
 
@@ -78,7 +80,7 @@ How to judge:
  */
 export function createClassifier({
   client, jevClient, gate, budget,
-  rules = config.rulesText || DEFAULT_RULES, ruleClassifier = createRuleClassifier(),
+  rules = config.rulesText || DEFAULT_RULES, ruleClassifier = createRuleClassifier(), log = console,
 } = {}) {
   budget ??= new DailyBudget({ limit: config.jevDailyTokenBudget, file: config.jevUsageFile });
   let jev = jevClient ?? null;
@@ -197,7 +199,21 @@ export function createClassifier({
     if (!answers) return byRules;
     const verdict = jevVerdict(answers, config.jevThreshold, meta.customRules);
     if (!verdict.violation && !verdict.hint) markClean(key);
+    if (!verdict.violation) logNearMiss(answers, content, meta);
     return verdict;
+  }
+
+  // A message Jev fully checked and let through, but that came close on something: logged so
+  // staff can see what the bot saw and tune thresholds (clean chat is never logged).
+  function logNearMiss(answers, content, meta) {
+    const scores = [];
+    for (const [k, p] of Object.entries(answers?.category?.probabilities ?? {})) if (k !== 'none') scores.push([k, p]);
+    for (const k of Object.keys(answers ?? {})) {
+      if (k.startsWith('baseline_') || k.startsWith('custom_')) scores.push([k, answers[k]?.noul ?? 0]);
+    }
+    const close = scores.filter(([, p]) => p >= NEAR_MISS).sort((a, b) => b[1] - a[1]).slice(0, 3);
+    if (!close.length) return;
+    log.log(`[check] ${meta.guildId ?? '-'} ${meta.authorName ?? '?'}: allowed, near miss ${close.map(([k, p]) => `${k}=${p.toFixed(2)}`).join(' ')}: "${String(content).slice(0, 80).replace(/\s+/g, ' ')}"`);
   }
 
   // Griefing and bullying only count when the member's recent messages show a pattern.

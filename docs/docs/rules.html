@@ -99,6 +99,7 @@
         <li><strong>Keyword and scam checks</strong> catch the obvious cases: scam patterns and fake Discord/Steam links, threats, "kys", direct insults ("you're an idiot"), hostile language, "let's grief their base", "this server is trash", and on Discord, mass-mentions. They see through l33t-speak and s.p.a.c.e.d letters. Free.</li>
         <li><strong>Trivial messages skip the AI:</strong> emoji only, "gg", "lol", "ok", "ty", bot commands like <code>!rank</code>. So does text already judged clean in the last hour.</li>
         <li><strong>Jev</strong> judges everything else (one <a href="/pricing.html#ai-checks">AI check</a>). It reads the message, what it replies to, and the last few messages in the room. Messages are bundled for up to about 2 seconds into a quick "could this break a rule?" check; only the possible problems get the full check. Jev only flags a message when it's confident (at least 90% sure for the built-in rules, 70% for your custom rules).</li>
+        <li><strong>The baseline</strong> applies to every app, on top of its custom rules, and can't be turned off. Jev answers a separate yes/no question for each of: threats or saying anyone should harm themselves (high), slurs and hate (high), insults and harassment aimed at people (low, at least 85% sure), toxic negativity or drama baiting about the game, server, devs or community (low), and griefing or raiding (medium). These are acted on straight away. Player trash talk ("gg ez", "ur trash at this game"), civil criticism and complaints about lag are left alone. Common slurs and "he should kill himself" are also caught by the free keyword check.</li>
       </ol>
       <p>The result's <code>source</code> says which step decided: <code>spam</code>, <code>rules</code>, <code>jev</code> (or <code>ai</code> on self-hosted servers using Claude).</p>
 
@@ -107,8 +108,8 @@
         <table>
           <thead><tr><th scope="col">Severity</th><th scope="col">For example</th><th scope="col">First offense</th><th scope="col">Counts for</th></tr></thead>
           <tbody>
-            <tr><td><code>low</code></td><td>Subtle rudeness, negativity, flooding chat, advertising</td><td>2 minute mute</td><td>24 hours</td></tr>
-            <tr><td><code>medium</code></td><td>Clear insults, griefing, bullying, repeated spam, possible scams</td><td>10 minute mute</td><td>24 hours</td></tr>
+            <tr><td><code>low</code></td><td>Subtle rudeness, negativity, flooding chat, advertising</td><td>5 minute mute</td><td>24 hours</td></tr>
+            <tr><td><code>medium</code></td><td>Clear insults, griefing, bullying, repeated spam, possible scams</td><td>5 minute mute</td><td>24 hours</td></tr>
             <tr><td><code>high</code></td><td>Threats, slurs, self-harm incitement, scams</td><td>24 hour mute + final warning</td><td>30 days</td></tr>
           </tbody>
         </table>
@@ -120,7 +121,7 @@
         <table>
           <thead><tr><th scope="col"><code>level</code></th><th scope="col"><code>label</code></th><th scope="col"><code>durationMs</code></th><th scope="col"><code>message</code> shown to the user</th></tr></thead>
           <tbody>
-            <tr><td>0</td><td>2 minute mute</td><td>120000</td><td>Please keep it respectful. You have been muted for 2 minutes.</td></tr>
+            <tr><td>0</td><td>5 minute mute</td><td>300000</td><td>Please keep it respectful. You have been muted for 5 minutes.</td></tr>
             <tr><td>1</td><td>10 minute mute</td><td>600000</td><td>That crossed the line. You have been muted for 10 minutes.</td></tr>
             <tr><td>2</td><td>1 hour mute</td><td>3600000</td><td>You have broken the rules several times recently. You have been muted for 1 hour.</td></tr>
             <tr><td>3</td><td>6 hour mute</td><td>21600000</td><td>You keep breaking the rules. You have been muted for 6 hours.</td></tr>
@@ -134,11 +135,11 @@
         <table>
           <thead><tr><th scope="col">Active strikes</th><th scope="col">Low</th><th scope="col">Medium</th><th scope="col">High</th></tr></thead>
           <tbody>
-            <tr><td>0</td><td>2 min</td><td>10 min</td><td>24 h, final warning</td></tr>
-            <tr><td>1</td><td>10 min</td><td>1 h</td><td>Ban</td></tr>
-            <tr><td>2</td><td>1 h</td><td>6 h</td><td>Ban</td></tr>
-            <tr><td>3</td><td>6 h</td><td>24 h, final warning</td><td>Ban</td></tr>
-            <tr><td>4</td><td>24 h, final warning</td><td>Ban</td><td>Ban</td></tr>
+            <tr><td>0</td><td>5 min</td><td>5 min</td><td>24 h, final warning</td></tr>
+            <tr><td>1</td><td>10 min</td><td>10 min</td><td>Ban</td></tr>
+            <tr><td>2</td><td>1 h</td><td>1 h</td><td>Ban</td></tr>
+            <tr><td>3</td><td>6 h</td><td>6 h</td><td>Ban</td></tr>
+            <tr><td>4</td><td>24 h, final warning</td><td>24 h, final warning</td><td>Ban</td></tr>
             <tr><td>5 or more</td><td>Ban</td><td>Ban</td><td>Ban</td></tr>
           </tbody>
         </table>

@@ -57,6 +57,10 @@ export const config = {
   jevCustomThreshold: num(process.env.JEV_CUSTOM_THRESHOLD, 0.7),
   // A message at least this likely to be a scam is removed with a lighter mute (0.9+ is a full scam).
   jevScamThreshold: num(process.env.JEV_SCAM_THRESHOLD, 0.6),
+  // The built-in baseline (insults, threats, slurs, drama, griefing), asked of Jev for every
+  // app on top of its own rules. Tuned on real chat; see BASELINE in jev.js.
+  jevBaselineThreshold: num(process.env.JEV_BASELINE_THRESHOLD, 0.9),
+  jevInsultThreshold: num(process.env.JEV_INSULT_THRESHOLD, 0.85),
   // How sure Jev must be that a member's messages together are griefing or bullying.
   jevPatternThreshold: num(process.env.JEV_PATTERN_THRESHOLD, 0.8),
 
@@ -90,7 +94,7 @@ const DAY = 24 * HOUR;
  * step up for every offense the member still has active; past the last mute is a ban.
  */
 export const LADDER = [
-  { label: '2 minute mute', timeoutMs: 2 * MIN, message: 'Please keep it respectful. You have been muted for 2 minutes.' },
+  { label: '5 minute mute', timeoutMs: 5 * MIN, message: 'Please keep it respectful. You have been muted for 5 minutes.' },
   { label: '10 minute mute', timeoutMs: 10 * MIN, message: 'That crossed the line. You have been muted for 10 minutes.' },
   { label: '1 hour mute', timeoutMs: HOUR, message: 'You have broken the rules several times recently. You have been muted for 1 hour.' },
   { label: '6 hour mute', timeoutMs: 6 * HOUR, message: 'You keep breaking the rules. You have been muted for 6 hours.' },
@@ -100,9 +104,12 @@ export const BAN = { label: 'Ban', ban: true, message: 'You have been banned for
 
 // start: LADDER step for a first offense. cooldownMs: how long the offense keeps counting,
 // so 24 hours without trouble starts a member back at the bottom.
+// Toxic, negative or griefing members get a 5 minute mute first (low and medium both start
+// there); repeats climb the ladder, and high severity goes straight to 24 hours.
+// The ladder is code, not per-app data, so every linked server uses it as soon as the bot restarts.
 export const SEVERITY = {
   low: { start: 0, cooldownMs: DAY, description: 'subtle rudeness, negativity, flooding chat' },
-  medium: { start: 1, cooldownMs: DAY, description: 'clear insult, griefing, bullying, repeated spam' },
+  medium: { start: 0, cooldownMs: DAY, description: 'clear insult, griefing, bullying, repeated spam' },
   high: { start: 4, cooldownMs: 30 * DAY, description: 'threats, slurs, self-harm incitement, scams' },
 };
 

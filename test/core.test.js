@@ -125,7 +125,7 @@ test('moderator: escalates, records history, and punishes a flood only once', as
     const first = await t.moderator.moderate(app, { userId: 'u1', username: 'bob', text: 'bad', room: 'lobby' });
     assert.equal(first.allow, false);
     assert.equal(first.action.type, 'mute');
-    assert.equal(first.action.durationMs, 2 * 60_000);
+    assert.equal(first.action.durationMs, 5 * 60_000, 'first offense: 5 minute mute');
     assert.equal(first.strikes, 1);
     const again = await t.moderator.moderate(app, { userId: 'u1', text: 'bad again' });
     assert.equal(again.action.type, 'delete', 'second violation within 10 s is only deleted');

@@ -2,7 +2,7 @@
 // ban them, leave a short public notice and log it for staff. The decision itself (strikes,
 // which step of the ladder) is made by the shared moderator in ../moderation.js.
 
-import { EmbedBuilder } from 'discord.js';
+import { EmbedBuilder, ChannelType, PermissionFlagsBits } from 'discord.js';
 import { config } from '../config.js';
 
 export const COLORS = [0xf1c40f, 0xe6a23c, 0xe67e22, 0xe74c3c, 0xc0392b, 0x8b0000];
@@ -105,11 +105,38 @@ export async function logWatch({ app, message, category }) {
 /** Which channel a server logs to: set per app with /modlog or the dashboard, else MOD_LOG_CHANNEL_ID. */
 export const modLogChannelId = (app) => app?.settings?.modLogChannelId ?? config.modLogChannelId ?? null;
 
-export async function modLog(guild, app, embed) {
+// For servers that never ran /modlog: staff log channels by name, best first.
+const LOG_CHANNEL_NAMES = [
+  /^(?:jef|jev)[-_ ]?(?:bot[-_ ]?)?(?:mod[-_ ]?)?logs?$/,
+  /^mod[-_ ]?logs?$/,
+  /^modbot[-_ ]?logs?$/,
+  /^automod[-_ ]?logs?$/,
+  /^mod(?:eration)?[-_ ]?actions?$/,
+];
+const LOG_PERMS = [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.EmbedLinks];
+
+/** A text channel that looks like a staff log and that the bot can post embeds in, or null. */
+export function findLogChannel(guild) {
+  const me = guild.members?.me;
+  const usable = [...(guild.channels?.cache?.values() ?? [])].filter((c) => c.type === ChannelType.GuildText
+    && (!me || c.permissionsFor?.(me)?.has(LOG_PERMS)));
+  for (const re of LOG_CHANNEL_NAMES) {
+    const found = usable.find((c) => re.test(String(c.name).toLowerCase()));
+    if (found) return found;
+  }
+  return null;
+}
+
+/** The channel actions are logged to: the configured one, else one found by name. */
+export async function resolveModLog(guild, app) {
   const channelId = modLogChannelId(app);
-  if (!channelId) return;
-  const ch = guild.channels.cache.get(channelId)
-    ?? await guild.channels.fetch(channelId).catch(() => null);
+  const configured = channelId && (guild.channels.cache.get(channelId)
+    ?? await guild.channels.fetch(channelId).catch(() => null));
+  return configured || findLogChannel(guild);
+}
+
+export async function modLog(guild, app, embed) {
+  const ch = await resolveModLog(guild, app);
   await ch?.send({ embeds: [embed] }).catch(() => {});
 }
 

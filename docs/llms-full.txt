@@ -12,7 +12,7 @@ BASE_URL below means the origin you fetched this file from (scheme + host, no tr
 - **App key** `jef_app_…`: one API app only. Can `POST /v1/moderate`, `GET /v1/account`, read the app, its rules, users and events, and warn/pardon its users. Anything else → 403 `forbidden`. Use in the game server. Never in game clients or browsers.
 - Keys are shown once at creation (`secret`); only a hash is stored. Lost secret → create a new key and delete the old one.
 - **Strike**: an offense against a `userId` in an app. Counts for 24 h (30 days for high severity).
-- **Ladder** (level → punishment): 0 = 2 minute mute, 1 = 10 minute mute, 2 = 1 hour mute, 3 = 6 hour mute, 4 = FINAL warning + 24 hour mute, 5 = ban. An offense starts at its severity's level (low 0, medium 1, high 4) plus the number of active strikes; level ≥ 5 is a ban.
+- **Ladder** (level → punishment): 0 = 5 minute mute, 1 = 10 minute mute, 2 = 1 hour mute, 3 = 6 hour mute, 4 = FINAL warning + 24 hour mute, 5 = ban. An offense starts at its severity's level (low 0, medium 0, high 4) plus the number of active strikes; level ≥ 5 is a ban.
 - **Event**: history entry (`action`, `watch`, `manual`, `pardon`), kept for the plan's `historyDays`. Clean messages are never stored.
 - **AI check**: a message that gets past the free spam/scam/keyword checks and isn't trivial (emoji, "gg", "lol", bot commands) or recently judged clean is sent to Jev = 1 AI check. Confirming a griefing/bullying pattern is one more AI check. At most a tenth of `aiChecksPerMonth` (rounded up) can be used per UTC day. Past the daily or monthly limit, apps keep running on the free checks only until it resets (results include `"aiSkipped": "quota"`); custom rules need the AI.
 - **Downgrades**: limits apply at use time, keeping the oldest items. Apps past the plan's app count have `inPlan: false` and aren't moderated (`POST /v1/moderate` → 403 `plan_limit`; Discord servers on them are ignored). Only an app's oldest `customRules` rules apply. Account keys past the plan's `accountKeys` get 403 `plan_limit` on every request.
@@ -159,7 +159,7 @@ The response includes:
 ```bash
 curl -s "$JEF_URL/v1/moderate" -H "Authorization: Bearer $JEF_APP_KEY" -H "Content-Type: application/json" \
   -d '{"userId": "setup-test-user", "username": "SetupTest", "text": "you are an idiot", "room": "test"}'
-# → allow false, category "rudeness", severity "medium", action.type "mute", action.label "10 minute mute"
+# → allow false, category "rudeness", severity "medium", action.type "mute", action.label "5 minute mute"
 ```
 
 With an account key, add `"appId"`. Test calls are real (usage + strikes). Clean up:
@@ -261,7 +261,7 @@ Conventions: JSON bodies with `Content-Type: application/json` (max 64 KB). ISO 
 | watch | griefing\|harassment\|null | possible start of a pattern; logged, no action |
 | aiSkipped | "quota" | only present when the AI was skipped because the month's or the UTC day's AI checks are used up |
 
-**Action**: `{ type: none|delete|mute|ban, label, durationMs|null, message|null, level? (0–5, on mute/ban) }`. Mute labels/durations: "2 minute mute" 120000, "10 minute mute" 600000, "1 hour mute" 3600000, "6 hour mute" 21600000, "FINAL warning + 24 hour mute" 86400000; "Ban" null.
+**Action**: `{ type: none|delete|mute|ban, label, durationMs|null, message|null, level? (0–5, on mute/ban) }`. Mute labels/durations: "5 minute mute" 300000, "10 minute mute" 600000, "1 hour mute" 3600000, "6 hour mute" 21600000, "FINAL warning + 24 hour mute" 86400000; "Ban" null.
 
 **Strike**: `{ id, at, until, category, severity, reason, excerpt (≤200)|null, by ("auto" or issuer) }`
 
@@ -406,6 +406,6 @@ Delivery is best effort: one attempt, 5 s timeout, no redirects, no retries. Onl
 
 - Built-in rules: be respectful (no insults); no toxicity (harassment, hate, slurs, threats, self-harm incitement); no griefing (organising/bragging about wrecking others' play, raids, spam-pinging, flooding); keep it positive (no trashing the community/staff, no drama); no rudeness; no spam or scams. Banter, gaming trash talk, venting and civil disagreement are allowed.
 - Order: spam checks (flood: 6 messages in 10 s → low; repeat: same message 3× in 60 s, 5× for short ones → medium) → keyword/scam checks → Jev (≥90% confidence for built-in rules, ≥70% for custom rules).
-- Severities: low (subtle rudeness, negativity, flooding, advertising) starts at 2 min; medium (insults, griefing, bullying, repeated spam, possible scams) at 10 min; high (threats, slurs, self-harm incitement, scams) at 24 h final warning and counts 30 days.
+- Severities: low (subtle rudeness, negativity, flooding, advertising) starts at 5 min; medium (insults, griefing, bullying, repeated spam, possible scams) also at 5 min; high (threats, slurs, self-harm incitement, scams) at 24 h final warning and counts 30 days.
 - Griefing and harassment (bullying) need a pattern: the first look-alike message only returns `watch` and logs a `watch` event; a later matching message within 30 minutes is judged together with the person's recent messages and punished if it's a pattern.
 - Custom rules: plain-language text + severity; violations get `category: "custom"`, reason "Server rule: <text>", acted on immediately. Need the AI.

@@ -9,12 +9,20 @@ const PATTERNS = [
   // high severity: self-harm incitement, threats
   { category: 'toxicity', severity: 'high', reason: 'Telling someone to harm themselves',
     re: /\b(kys|kill\s*(?:ur|your)\s*self|go\s+die|end\s+(?:ur|your)\s*(?:self|life)|neck\s+yourself)\b/i },
+  // ...or saying someone else should: "dev should really kill himself", "hope he dies".
+  { category: 'toxicity', severity: 'high', reason: 'Saying someone should harm themselves',
+    re: /\b(?:should|needs?\s+to|ought\s+to|go(?:nna)?|pls|please)\s+(?:\w+\s+){0,2}(?:kill|hang|off)\s+(?:him|her|them|your|ur)\s*(?:self|selves)\b|\bhope\s+(?:you|u|he|she|they|the\s+devs?)\s+(?:\w+\s+)?die\b/i },
   { category: 'threat', severity: 'high', reason: 'Threatening another member',
     re: /\b(i(?:'ll| will| am gonna|m gonna)\s+(?:kill|hurt|find|dox+)\s+(?:you|u)|i\s+know\s+where\s+you\s+live)\b/i },
 
+  // high: common slurs, so the baseline catches them even without Jev or a blocked-words list.
+  // Checked on the normalised text too, so n1gg3r and f.a.g are caught.
+  { category: 'hate', severity: 'high', reason: 'Slur',
+    re: /\b(?:n[i1!]gg(?:er|a|ah|uh|az|as|ers)|f[a@]gg?(?:ot|ots|s)?|tr[a@]nn(?:y|ies)|ch[i1]nks?|sp[i1]cs?|k[i1]kes?|retards)\b/i },
+
   // medium: direct insults
   { category: 'rudeness', severity: 'medium', reason: 'Insulting another member',
-    re: /\b(?:you(?:'re| are)?|ur|u r)\s+(?:so\s+|such\s+an?\s+|an?\s+)?(?:idiot|moron|stupid|dumb(?:ass)?|retard(?:ed)?|loser|trash|garbage|pathetic|worthless|clown|braindead)\b/i },
+    re: /\b(?:you(?:'re| are)?|ur|u r)\s+(?:so\s+|such\s+an?\s+|an?\s+)?(?:idiot|moron|stupid|dumb(?:ass)?|retard(?:ed)?|loser|trash(?!\s+at\b)|garbage(?!\s+at\b)|pathetic|worthless|clown|braindead)\b/i },
   { category: 'rudeness', severity: 'low', reason: 'Hostile language',
     re: /\b(?:shut\s+(?:the\s+f\w*\s+)?up|stfu|f+u+c+k+\s+(?:you|u|off)|screw\s+you|nobody\s+(?:asked|likes\s+you))\b/i },
 

@@ -126,7 +126,7 @@ test('in a linked server the moderator judges each message and violations are ca
   await handlers.onMessage(bad);
   assert.ok(bad.calls.includes('delete'));
   assert.ok(bad.calls.includes('dm'));
-  assert.ok(bad.calls.includes(`timeout:${2 * 60_000}`), 'first low offense: 2 minute mute');
+  assert.ok(bad.calls.includes(`timeout:${5 * 60_000}`), 'first low offense: 5 minute mute');
   assert.equal(db.strikes.count(app.id, 'u1'), 1);
 
   // Managers, ignored channels and bots are left alone.

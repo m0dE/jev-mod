@@ -12,7 +12,7 @@ Jev (TypeSafe's decision model) does the AI judging. "Jef Bot" is the product; "
 - **Account**: someone who signed in with Google. Has a **plan** (`free`, `starter` $5/mo, `pro` $20/mo; `internal` is unlimited and not sold). Limits are in `src/plans.js`.
 - **App**: something being moderated. It's either `kind: "discord"` (linked to one Discord server through `discord_guild_id`) or `kind: "api"` (a game or any other chat, which calls `POST /v1/moderate`). Each app has its own custom rules, strikes, history and settings.
 - **API keys**: `jef_acct_…` **account keys** can do anything the owner can, including starting Checkout or opening the billing portal (both return a URL for a person to open). That's how agents set things up headlessly. `jef_app_…` **app keys** work on one app only: moderate, look up and warn or pardon users, and read its rules and history (plus `GET /v1/account`). Only a SHA-256 hash of each key is stored.
-- **Strikes**: each offense counts for a while (24 h, or 30 days for severe ones). Active strikes move a user up the punishment ladder (`src/config.js` LADDER: 2 min → 10 min → 1 h → 6 h → 24 h final warning → ban).
+- **Strikes**: each offense counts for a while (24 h, or 30 days for severe ones). Active strikes move a user up the punishment ladder (`src/config.js` LADDER: 5 min → 10 min → 1 h → 6 h → 24 h final warning → ban).
 - **Events**: moderation history (`action`, `watch`, `manual`, `pardon`). It's kept for the plan's `historyDays`. Clean messages are never stored.
 - **Usage**: each account counts messages and AI checks per month (UTC), shared by all its apps. Past `aiChecksPerMonth`, the account's apps fall back to the free keyword, spam and scam rules until the 1st.
 

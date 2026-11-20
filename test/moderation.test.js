@@ -79,8 +79,9 @@ const DAY = 24 * 60 * MIN;
 
 test('punishment starts at the severity and escalates with each active offense', () => {
   const ladder = (sev) => [0, 1, 2, 3, 4, 5].map((n) => punishmentFor(sev, n)).map((p) => (p.ban ? 'ban' : p.timeoutMs / MIN));
-  assert.deepEqual(ladder('low'), [2, 10, 60, 360, 1440, 'ban']);
-  assert.deepEqual(ladder('medium'), [10, 60, 360, 1440, 'ban', 'ban']);
+  // First offense for toxic, negative or griefing messages (low or medium) is a 5 minute mute.
+  assert.deepEqual(ladder('low'), [5, 10, 60, 360, 1440, 'ban']);
+  assert.deepEqual(ladder('medium'), [5, 10, 60, 360, 1440, 'ban']);
   assert.deepEqual(ladder('high'), [1440, 'ban', 'ban', 'ban', 'ban', 'ban']);
 });
 
@@ -148,23 +149,49 @@ test('repeat subtle rudeness gets longer mutes, and resets after cooling down', 
     mutes.push(msg.calls.find((c) => c.startsWith('timeout:')));
     o.clock.now += 60 * MIN;
   }
-  assert.deepEqual(mutes, [`timeout:${2 * MIN}`, `timeout:${10 * MIN}`, `timeout:${60 * MIN}`]);
+  assert.deepEqual(mutes, [`timeout:${5 * MIN}`, `timeout:${10 * MIN}`, `timeout:${60 * MIN}`]);
 
   o.clock.now += 2 * DAY; // 48 hours later: back to the start
   const { msg } = await o.offend('nobody asked lol');
-  assert.ok(msg.calls.includes(`timeout:${2 * MIN}`));
+  assert.ok(msg.calls.includes(`timeout:${5 * MIN}`));
 });
 
-test('a clear insult four times in a day ends in a ban', async () => {
+test('repeat insults climb the ladder, one step per offense after each mute ends', async () => {
   const o = offender({ violation: true, category: 'rudeness', severity: 'medium', reason: 'Insult', source: 'rules' });
   const results = [];
   for (let i = 0; i < 5; i++) {
-    const { msg, result } = await o.offend('you are an idiot');
-    results.push(result.action.type === 'ban' ? 'ban' : result.action.durationMs / MIN);
-    if (result.action.type === 'ban') assert.ok(msg.calls.includes('ban:u1'));
-    o.clock.now += MIN;
+    const { result } = await o.offend('you are an idiot');
+    results.push(result.action.durationMs / MIN);
+    o.clock.now += result.action.durationMs + MIN;
   }
-  assert.deepEqual(results, [10, 60, 360, 1440, 'ban']);
+  assert.deepEqual(results, [5, 10, 60, 360, 1440]);
+});
+
+test('messages seen while a member is still muted are deleted without climbing the ladder', async () => {
+  // MODD, Nov 17 2026: one burst of fast chat went from a mute to a ban in a minute.
+  const o = offender({ violation: true, category: 'spam', severity: 'low', reason: 'Sending messages too fast', source: 'spam' });
+  const first = await o.offend('yetis XD');
+  assert.equal(first.result.action.durationMs, 5 * MIN);
+  for (let i = 0; i < 5; i++) {
+    o.clock.now += 20_000;
+    const { msg, result } = await o.offend('more');
+    assert.equal(result.action.type, 'delete');
+    assert.ok(msg.calls.includes('delete') && !msg.calls.some((c) => c.startsWith('timeout') || c.startsWith('ban')));
+  }
+  assert.equal(o.db.strikes.count(o.app.id, 'u1'), 1, 'still one strike');
+  o.clock.now += 5 * MIN;
+  assert.equal((await o.offend('again')).result.action.durationMs, 10 * MIN, 'after the mute, the next offense climbs');
+});
+
+test('a more severe offense during a mute is still punished', async () => {
+  const env = setupDb();
+  let verdict = { violation: true, category: 'rudeness', severity: 'low', reason: 'Rude', source: 'jev' };
+  const moderator = createModerator({ db: env.db, classifier: { aiAvailable: () => false, classify: async () => verdict }, now: () => env.clock.now });
+  assert.equal((await moderator.moderate(env.app, { userId: 'u', text: 'a' })).action.durationMs, 5 * MIN);
+  env.clock.now += MIN;
+  verdict = { violation: true, category: 'threat', severity: 'high', reason: 'Threat', source: 'jev' };
+  const r = await moderator.moderate(env.app, { userId: 'u', text: 'b' });
+  assert.equal(r.action.type, 'ban', 'high severity on top of an active strike');
 });
 
 test('a severe offense goes straight to the final warning', async () => {

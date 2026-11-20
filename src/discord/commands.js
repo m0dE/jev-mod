@@ -34,7 +34,7 @@ export const commands = [
     .setDescription("Manage this server's own rules, on top of the built-in ones")
     .addSubcommand((c) => c.setName('add').setDescription('Add a rule')
       .addStringOption((o) => o.setName('text').setDescription('The rule, in plain words, e.g. "No asking for or missing old Braains"').setRequired(true).setMaxLength(300))
-      .addStringOption((o) => o.setName('severity').setDescription('How serious breaking it is (default: low, a 2 minute mute)').addChoices(...severityChoices)))
+      .addStringOption((o) => o.setName('severity').setDescription('How serious breaking it is (default: low, a 5 minute mute)').addChoices(...severityChoices)))
     .addSubcommand((c) => c.setName('list').setDescription("List this server's rules"))
     .addSubcommand((c) => c.setName('remove').setDescription('Remove a rule')
       .addIntegerOption((o) => o.setName('id').setDescription('Rule number from /rule list').setRequired(true)))

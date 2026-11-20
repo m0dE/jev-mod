@@ -8,11 +8,15 @@ import { punishmentFor, describeStep, nextPunishments } from './ladder.js';
 import { MessageHistory } from './history.js';
 import { looksLikeScam } from './rules.js';
 
-// A flood can produce several violations at once: punish once, just delete the rest.
+// A flood can produce several violations at once: punish once, just delete the rest. Messages
+// that arrive while the member's mute is still running (sent just before it landed, or seen
+// late) are deleted too, without more strikes: on Nov 17, 2026 a member in MODD went from a
+// 2 minute mute to a ban in one minute for one burst of fast chatting.
 const REPUNISH_MS = 10_000;
 // Recent messages per room, used as context when the caller doesn't send any.
 const ROOM_CONTEXT = 5;
 
+const SEVERITY_RANK = { low: 1, medium: 2, high: 3 };
 const NO_ACTION = { type: 'none', label: 'No action', durationMs: null, message: null };
 const NOT_IN_PLAN = {
   allow: true, flagged: false, category: null, severity: null, reason: null, source: null, action: NO_ACTION,
@@ -139,15 +143,18 @@ export function createModerator({ db, classifier, history = new MessageHistory()
     result.deleteMessages = extra.filter((e) => !seen.has(e.id) && seen.add(e.id)).map((e) => ({ messageId: e.id, room: e.channelId ?? null }));
 
     const key = `${app.id}:${userId}`;
-    if (now() - (justPunished.get(key) ?? 0) < REPUNISH_MS) {
+    const severity = SEVERITY[verdict.severity] ? verdict.severity : 'medium';
+    const last = justPunished.get(key);
+    // Still under the last punishment: only a more severe offense punishes again.
+    if (last && now() < last.until && SEVERITY_RANK[severity] <= SEVERITY_RANK[last.severity]) {
       result.action = { type: 'delete', label: 'Message removed', durationMs: null, message: null };
       return result;
     }
-    justPunished.set(key, now());
-    if (justPunished.size > 10_000) justPunished.delete(justPunished.keys().next().value);
 
-    const severity = SEVERITY[verdict.severity] ? verdict.severity : 'medium';
     const step = punishmentFor(severity, db.strikes.count(app.id, userId));
+    justPunished.delete(key);
+    justPunished.set(key, { until: now() + Math.max(REPUNISH_MS, step.timeoutMs ?? 0), severity });
+    if (justPunished.size > 10_000) justPunished.delete(justPunished.keys().next().value);
     result.severity = severity;
     result.strikes = db.strikes.add(app.id, userId, {
       category: verdict.category, severity, reason: result.reason, excerpt: text, cooldownMs: SEVERITY[severity].cooldownMs,
@@ -180,6 +187,7 @@ export function createModerator({ db, classifier, history = new MessageHistory()
   /** Remove the newest `count` active offenses (all when omitted). */
   function pardon(app, { userId, username = null, count, by }) {
     const removed = db.strikes.pardon(app.id, userId, count ?? undefined);
+    justPunished.delete(`${app.id}:${userId}`);
     const strikes = db.strikes.count(app.id, userId);
     db.events.add(app.id, { type: 'pardon', userId, username, reason: `Removed ${removed} offense(s)`, strikes, by: String(by) });
     notify(app, db.accounts.get(app.accountId), 'moderation.pardon', { userId, username, removed, strikes, by: String(by) });

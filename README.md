@@ -39,11 +39,11 @@ Every rule-breaking message is removed and its sender muted. How long depends on
 
 | Severity | Examples | First offense |
 |---|---|---|
-| Low | snarky, dismissive, grumbling about the community, flooding chat, advertising | 2 minute mute |
-| Medium | insults, name-calling, griefing, bullying, repeating a message, likely scams | 10 minute mute |
+| Low | snarky, dismissive, grumbling about the community, flooding chat, advertising | 5 minute mute |
+| Medium | insults, name-calling, griefing, bullying, repeating a message, likely scams | 5 minute mute |
 | High | threats, slurs, "kys", scams and phishing links | 24 hour mute + final warning |
 
-Each repeat moves one step up the ladder: **2 min → 10 min → 1 h → 6 h → 24 h (final warning) → ban**.
+Each repeat moves one step up the ladder: **5 min → 10 min → 1 h → 6 h → 24 h (final warning) → ban**.
 
 - **Offenses cool down.** Each one counts for 24 hours (high ones for 30 days). Stay out of trouble for a day and you're back to the start.
 - **Griefing and bullying need a pattern.** One message that looks like griefing or bullying is only noted for staff (a `watch` event, and a "Watching" note in the Discord mod log). Jef Bot acts when the person's messages over the last 30 minutes show a real pattern (a plan to wreck someone's base, repeatedly picking on the same person).
@@ -51,13 +51,15 @@ Each repeat moves one step up the ladder: **2 min → 10 min → 1 h → 6 h →
 - **Edited messages are checked too** on Discord, so nobody can post something clean and edit it afterward.
 - **Exempt on Discord:** bots, the server owner, anyone with *Manage Messages*, and the roles and channels each app lists in its settings.
 
+At startup the bot logs a `[health]` line per Discord server: whether it's linked, how many text channels it can read, which mod-log channel it uses (one named like `mod-log` or `automod-logs` if `/modlog` was never run), and any missing permissions. Messages Jev let through but that scored at least 0.5 on something get a `[check] ... near miss` line.
+
 Change the mute lengths and messages (`LADDER`) and where each severity starts and how long it counts (`SEVERITY`) in `src/config.js`.
 
 ## How it decides
 
 1. **Spam checks** (`src/spam.js`) look at the sender's recent messages for flooding and repeats.
 2. **Keyword rules** (`src/rules.js`) are free and instant, catch the obvious cases (scams, insults, "kys", threats, "let's grief their base", "this server is trash", mass-pinging), and see through l33t-speak. Put your own banned words and slurs in `config/blocked-words.txt` (applies to every app).
-3. **AI** reviews the messages those don't catch: Jev if `TYPESAFE_API_KEY` is set, otherwise Claude if `ANTHROPIC_API_KEY` is set. Jev only flags a message when it's at least `JEV_THRESHOLD` (default 0.9) sure. It reads tone, the replied-to message and the last few messages in the room, and leaves friendly banter, venting, civil disagreement and gaming trash talk alone. Each app's custom rules are judged here too (`JEV_CUSTOM_THRESHOLD`, default 0.7).
+3. **AI** reviews the messages those don't catch: Jev if `TYPESAFE_API_KEY` is set, otherwise Claude if `ANTHROPIC_API_KEY` is set. Jev only flags a message when it's at least `JEV_THRESHOLD` (default 0.9) sure. It reads tone, the replied-to message and the last few messages in the room, and leaves friendly banter, venting, civil disagreement and gaming trash talk alone. Each app's custom rules are judged here too (`JEV_CUSTOM_THRESHOLD`, default 0.7). Every app also gets the built-in **baseline**, separate yes/no questions for threats and self-harm encouragement, slurs and hate, insults and harassment, toxic negativity and drama baiting, and griefing (`JEV_BASELINE_THRESHOLD`, default 0.9; `JEV_INSULT_THRESHOLD`, default 0.85). It's always on, on top of custom rules.
 
 With neither key, Jef Bot runs on spam and keyword rules only, and custom rules don't apply.
 
