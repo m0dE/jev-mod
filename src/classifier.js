@@ -187,6 +187,7 @@ export function createClassifier({
     const watched = (meta.history ?? []).some((h) => PATTERN_KINDS[h.flagged]);
     if (!watched) {
       const p = await gate.check(content, meta.customRules);
+      if (meta.verbose) log.log(`[test] quick check p=${p?.toFixed(2)} (threshold ${config.jevGateThreshold}): "${content.slice(0, 80)}"`);
       if (p !== null && p < config.jevGateThreshold) {
         stats.gatedClean++;
         markClean(key);
@@ -200,6 +201,12 @@ export function createClassifier({
     const verdict = jevVerdict(answers, config.jevThreshold, meta.customRules);
     if (!verdict.violation && !verdict.hint) markClean(key);
     if (!verdict.violation) logNearMiss(answers, content, meta);
+    if (meta.verbose) {
+      const scores = [...Object.entries(answers.category?.probabilities ?? {}).filter(([k]) => k !== 'none').map(([k, p]) => [k, p]),
+        ...Object.keys(answers).filter((k) => /^(baseline|custom)_/.test(k)).map((k) => [k, answers[k].noul ?? 0])]
+        .sort((a, b) => b[1] - a[1]).slice(0, 5).map(([k, p]) => `${k}=${p.toFixed(2)}`).join(' ');
+      log.log(`[test] full check: ${verdict.violation ? `VIOLATION ${verdict.category}/${verdict.severity}` : 'clean'}; top ${scores}; none=${(answers.category?.probabilities?.none ?? 0).toFixed(2)}`);
+    }
     return verdict;
   }
 

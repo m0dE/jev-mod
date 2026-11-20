@@ -22,7 +22,7 @@ const PATTERNS = [
 
   // medium: direct insults
   { category: 'rudeness', severity: 'medium', reason: 'Insulting another member',
-    re: /\b(?:you(?:'re| are)?|ur|u r)\s+(?:so\s+|such\s+an?\s+|an?\s+)?(?:idiot|moron|stupid|dumb(?:ass)?|retard(?:ed)?|loser|trash(?!\s+at\b)|garbage(?!\s+at\b)|pathetic|worthless|clown|braindead)\b/i },
+    re: /\b(?:you(?:'re| are)?|ur|u r|you\s+(?:guys|all|lot|people)\s+are|y'?all(?:\s+are)?)\s+(?:all\s+|both\s+|just\s+)?(?:so\s+|such\s+(?:an?\s+)?|an?\s+|bunch\s+of\s+|a\s+bunch\s+of\s+)?(?:idiots?|morons?|stupid|dumb(?:ass(?:es)?)?|retard(?:ed|s)?|losers?|trash(?!\s+at\b)|garbage(?!\s+at\b)|pathetic|worthless|clowns?|braindead)\b/i },
   { category: 'rudeness', severity: 'low', reason: 'Hostile language',
     re: /\b(?:shut\s+(?:the\s+f\w*\s+)?up|stfu|f+u+c+k+\s+(?:you|u|off)|screw\s+you|nobody\s+(?:asked|likes\s+you))\b/i },
 

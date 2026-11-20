@@ -148,6 +148,13 @@ test('keyword baseline: third-person self-harm and slurs caught, gaming trash ta
     assert.equal(rules(t).violation, false, t);
   }
   assert.equal(rules('you are trash').violation, true);
+  // Live test in m0dE's games, Nov 20: after "gg ez noobs, rematch?" Jev scored this 0.78 (needs 0.85).
+  for (const t of ['you are all braindead losers', 'you guys are idiots', "y'all are such losers", 'you are a bunch of clowns']) {
+    assert.equal(rules(t).category, 'rudeness', t);
+  }
+  for (const t of ['gg ez noobs, rematch?', 'you are all invited to the tournament', 'you guys are trash at this game lol']) {
+    assert.equal(rules(t).violation, false, t);
+  }
 });
 
 // --- Discord: log channel fallback and startup health check ---
@@ -209,4 +216,35 @@ test('startup health check: linked servers report channels, log channel and miss
   await h.onReady(client);
   assert.equal(system.sent.length, 1, 'link notice only once');
   assert.equal(modlog.sent.length, 1, 'permission warning only when it changes');
+});
+
+test('JEF_TEST_USER_IDS: the owner is moderated and a timeout is attempted, with the error logged', async () => {
+  const { db, account } = setupDb();
+  const app = db.apps.create({ accountId: account.id, name: 'g', kind: 'discord' });
+  db.apps.setGuild(app.id, 'g1');
+  const classifier = { aiAvailable: () => false, aiName: () => null, classify: async () => ({ violation: true, category: 'rudeness', severity: 'low', reason: 'Insult', source: 'jev' }) };
+  const lines = [];
+  const log = { log: (l) => lines.push(l), warn: (l) => lines.push(l), error: (...a) => lines.push(a.join(' ')) };
+  const h = createDiscordHandlers({ db, moderator: createModerator({ db, classifier }), classifier, log, linkNoticeDelayMs: 0 });
+  const calls = [];
+  const msg = (id) => ({
+    id, content: 'you are all braindead losers', channelId: 'c1',
+    guild: { id: 'g1', name: 'G', ownerId: 'owner', members: { me: null }, channels: { cache: new Map(), fetch: async () => null } },
+    channel: { name: 'general', toString: () => '#general', send: async () => ({ delete: async () => {} }) },
+    author: { id: 'owner', username: 'm0de', tag: 'm0de', bot: false, toString: () => '<@owner>', send: async () => {} },
+    member: { id: 'owner', moderatable: false, permissions: { has: () => true }, roles: { cache: new Map() },
+      timeout: async () => { calls.push('timeout'); throw Object.assign(new Error('Missing Permissions'), { code: 50013 }); } },
+    delete: async () => calls.push('delete'),
+  });
+  const saved = config.testUserIds;
+  try {
+    config.testUserIds = [];
+    await h.onMessage(msg('1'));
+    assert.deepEqual(calls, [], 'owner skipped normally');
+    config.testUserIds = ['owner'];
+    await h.onMessage(msg('2'));
+    assert.deepEqual(calls, ['delete', 'timeout']);
+    assert.ok(lines.some((l) => /mute failed for owner: 50013 Missing Permissions/.test(l)));
+    assert.ok(lines.some((l) => /5 minute mute \(mute failed\)/.test(l)));
+  } finally { config.testUserIds = saved; }
 });

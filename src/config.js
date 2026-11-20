@@ -78,6 +78,9 @@ export const config = {
   // Channels and roles the bot never moderates, for Discord apps that haven't set their own.
   ignoredChannelIds: list(process.env.IGNORED_CHANNEL_IDS),
   exemptRoleIds: list(process.env.EXEMPT_ROLE_IDS),
+  // Testing only: these Discord user IDs are moderated even if they own or run the server,
+  // and a timeout is attempted even when Discord won't allow it (the error is logged).
+  testUserIds: list(process.env.JEF_TEST_USER_IDS),
 
   // The single-server bot's data files, imported into the database once (see migrate.js).
   dataFile: process.env.STRIKES_FILE || 'data/strikes.json',

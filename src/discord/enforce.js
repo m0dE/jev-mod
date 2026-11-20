@@ -71,9 +71,11 @@ export async function punish({ guild, member, userId, action, reason, log = cons
     await guild.members.ban(userId, { reason: `Repeated offenses: ${reason}`, deleteMessageSeconds: 3600 })
       .catch((e) => { outcome += ' (ban failed)'; log.warn(`[enforce] ban failed: ${e.message}`); });
   } else if (action.type === 'mute') {
-    if (member?.moderatable) {
+    // JEF_TEST_USER_IDS: try anyway, so a test from the owner's account shows Discord's answer.
+    if (member?.moderatable || (member && config.testUserIds.includes(userId))) {
       await member.timeout(action.durationMs, reason)
-        .catch((e) => { outcome += ' (mute failed)'; log.warn(`[enforce] mute failed: ${e.message}`); });
+        .then(() => log.log(`[enforce] timed out ${userId} for ${action.durationMs / 60_000} min`))
+        .catch((e) => { outcome += ' (mute failed)'; log.warn(`[enforce] mute failed for ${userId}: ${e.code ?? ''} ${e.message}`); });
     } else {
       outcome += ' (cannot mute this member)';
     }

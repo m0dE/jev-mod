@@ -110,6 +110,7 @@ export function createModerator({ db, classifier, history = new MessageHistory()
       recent: classifier.aiAvailable() ? recent : [],
       history: earlier,
       quota: quotaFor(account),
+      verbose: Boolean(input.verbose),
     });
     history.flag(app.id, userId, messageId, verdict.hint ?? (verdict.violation ? verdict.category : null));
 

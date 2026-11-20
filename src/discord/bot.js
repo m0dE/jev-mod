@@ -22,6 +22,7 @@ function exemptLists(app) {
 
 function isExempt(message, app) {
   const { channels, roles } = exemptLists(app);
+  if (config.testUserIds.includes(message.author?.id) && !channels.includes(message.channelId)) return false;
   if (channels.includes(message.channelId)) return true;
   const member = message.member;
   if (!member) return false;
@@ -89,6 +90,7 @@ export function createDiscordHandlers({ db, moderator, classifier, log = console
         replyTo: await replyTarget(message),
         context: classifier.aiAvailable() ? await recentContext(message) : undefined,
         mentionCount: mentionCount(message),
+        verbose: config.testUserIds.includes(message.author.id),
       });
 
       if (result.watch) {
