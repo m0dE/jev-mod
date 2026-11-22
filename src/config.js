@@ -48,7 +48,8 @@ export const config = {
   // AI classification. Without a key the bot falls back to the keyword rules only.
   aiEnabled: process.env.AI_MODERATION !== 'off',
   model: process.env.MOD_MODEL || 'claude-opus-5-5',
-  effort: process.env.MOD_EFFORT || 'low',
+  // 'none' leaves effort out of the request: models without it (Claude Haiku 4.5) refuse the field.
+  effort: (process.env.MOD_EFFORT || 'low').toLowerCase() === 'none' ? null : process.env.MOD_EFFORT || 'low',
   // TypeSafe's Jev is used instead of Claude when TYPESAFE_API_KEY is set.
   jevModel: process.env.JEV_MODEL || 'jev-latest',
   // How sure Jev must be (0-1) before a message counts as a violation.

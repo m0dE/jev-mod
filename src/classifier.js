@@ -153,7 +153,7 @@ export function createClassifier({
       max_tokens: 1024,
       betas: ['server-side-fallback-2026-07-01'],
       fallbacks: 'default',
-      output_config: { effort: config.effort, format: { type: 'json_schema', schema: VERDICT_SCHEMA } },
+      output_config: { ...(config.effort ? { effort: config.effort } : {}), format: { type: 'json_schema', schema: VERDICT_SCHEMA } },
       system: system + customRulesText(customRules),
       messages: [{
         role: 'user',
