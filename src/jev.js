@@ -57,7 +57,7 @@ export const BASELINE = {
     category: 'hate', severity: 'high', reason: 'Slurs or hate speech', threshold: 'jevBaselineThreshold',
     question: {
       type: 'noul',
-      instructions: 'Does message_to_judge contain a slur or a hateful attack on people for their race, ethnicity, religion, sexuality, gender or disability?',
+      instructions: 'Does message_to_judge contain a slur or a hateful attack on people for their race, ethnicity, religion, sexuality, gender or disability? A word that only names a group ("jew", "muslim", "black", "gay") is not a slur, and neither is a player name that contains one ("Jew1"). When unsure, answer false.',
       criteria: { true: 'A slur or hate speech.', false: 'No slur or hate.' },
     },
   },
